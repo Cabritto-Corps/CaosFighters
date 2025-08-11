@@ -1,50 +1,157 @@
-# Welcome to your Expo app 👋
+# Battle App - React Native with Expo
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A proximity-based battle game built with React Native, Expo, and Supabase.
 
-## Get started
+## 🚀 Quick Start
 
-1. Install dependencies
+### Prerequisites
 
-   ```bash
-   npm install
-   ```
+- Node.js 18+
+- pnpm (recommended) or npm
+- Expo CLI
+- Android Studio / Xcode (for device testing)
 
-2. Start the app
+### Environment Setup
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+Create a `.env` file in the root directory:
 
 ```bash
-npm run reset-project
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+**Note:** The project uses the existing `app.json` configuration with environment variables support.
 
-## Learn more
+### Installation
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+# Install dependencies
+pnpm install
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+# Start development server
+pnpm start
 
-## Join the community
+# Run on device
+pnpm android  # Android
+pnpm ios      # iOS
+pnpm web      # Web
+```
 
-Join our community of developers creating universal apps.
+## 🏗️ Project Structure
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```
+src/
+├── app/                    # Application layer
+│   ├── screens/           # Screen components
+│   ├── components/        # Reusable components
+│   └── navigation/        # Navigation setup
+├── expo-app/              # Existing Expo app structure
+│   ├── (tabs)/            # Tab navigation
+│   ├── _layout.tsx        # Root layout
+│   └── +not-found.tsx     # 404 screen
+├── domain/                # Domain layer
+│   ├── entities/          # Business entities
+│   ├── repositories/      # Data access interfaces
+│   ├── services/          # Business logic
+│   └── adapters/          # External service adapters
+├── infra/                 # Infrastructure layer
+│   ├── supabase/          # Supabase client
+│   ├── gateways/          # External service gateways
+│   └── mappers/           # Data transformation
+├── state/                 # State management (Zustand)
+├── styles/                # Theme and styling (includes Colors)
+└── utils/                 # Utility functions (includes hooks)
+
+**Note:** The project has been reorganized to avoid conflicts. All existing Expo files are now properly organized within `src/` following clean architecture principles.
+```
+
+## 🎯 Features (Planned)
+
+- [ ] **Authentication** - Supabase auth integration
+- [ ] **Proximity Matching** - Location-based battle matching
+- [ ] **Turn-based Battles** - Pokémon-like battle system
+- [ ] **Ranking System** - Leaderboards and statistics
+
+## 🛠️ Development
+
+### Available Scripts
+
+- `pnpm start` - Start Expo development server
+- `pnpm android` - Run on Android device/emulator
+- `pnpm ios` - Run on iOS device/simulator
+- `pnpm test` - Run Jest tests
+- `pnpm lint` - Run ESLint
+
+### Testing
+
+```bash
+pnpm test              # Run all tests
+pnpm test --watch      # Run tests in watch mode
+pnpm test --coverage   # Run tests with coverage
+```
+
+### Code Quality
+
+- **TypeScript**: Strict mode enabled
+- **ESLint**: Lightweight configuration
+- **Prettier**: Code formatting (already configured)
+
+## 🔧 Configuration
+
+### TypeScript
+
+- Strict mode enabled
+- Path aliases configured (`@/*`)
+- Expo base configuration
+
+### Navigation
+
+- React Navigation (Stack + Tabs)
+- Login → Main app flow
+- Tab-based navigation for main features
+
+### State Management
+
+- Zustand for global state
+- Session and battle stores (placeholders)
+
+## 📱 Permissions
+
+The app will request these permissions:
+
+- **Location**: For proximity-based matching
+- **Notifications**: For battle invitations
+
+## 🚧 Current Status
+
+This is a **scaffolded project** with:
+
+- ✅ Project structure and folders
+- ✅ Basic navigation shell
+- ✅ Supabase client setup
+- ✅ Placeholder screens
+- ✅ State store placeholders
+- ✅ Testing configuration
+- ✅ Environment configuration
+- ✅ Metro configuration for path aliases
+- ✅ ESLint configuration for new structure
+
+**Next steps:**
+
+1. Implement domain entities and business logic
+2. Add Supabase authentication
+3. Implement location services
+4. Build battle system
+5. Add ranking functionality
+
+## 🤝 Contributing
+
+1. Follow the established folder structure
+2. Use TypeScript with strict mode
+3. Keep components minimal and focused
+4. Add tests for new functionality
+5. Update documentation as needed
+
+## 📄 License
+
+Private project - All rights reserved
