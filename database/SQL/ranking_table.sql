@@ -1,11 +1,11 @@
 CREATE TABLE public.ranking (
     id SERIAL PRIMARY KEY,
-    categoria_id INTEGER NOT NULL REFERENCES public.categorias(id) ON DELETE CASCADE,
-    pontos_minimos INTEGER NOT NULL,
-    pontos_maximos INTEGER,
+    tier_id INTEGER NOT NULL REFERENCES public.tiers(id) ON DELETE CASCADE,
+    min_points INTEGER NOT NULL,
+    max_points INTEGER,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT check_pontos_validos CHECK (pontos_minimos >= 0 AND (pontos_maximos IS NULL OR pontos_maximos >= pontos_minimos))
+    CONSTRAINT check_points_valid CHECK (min_points >= 0 AND (max_points IS NULL OR max_points >= min_points))
 );
 
-CREATE INDEX idx_ranking_categoria ON public.ranking(categoria_id);
-CREATE INDEX idx_ranking_pontos ON public.ranking(pontos_minimos, pontos_maximos);
+CREATE INDEX idx_ranking_tier ON public.ranking(tier_id);
+CREATE INDEX idx_ranking_points ON public.ranking(min_points, max_points);

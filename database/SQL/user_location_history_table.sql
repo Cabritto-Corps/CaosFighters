@@ -1,14 +1,14 @@
-CREATE TABLE public.historico_localizacao_usuario (
+CREATE TABLE public.user_location_history (
     id BIGSERIAL PRIMARY KEY,
-    usuario_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     latitude DECIMAL(9,6) NOT NULL,
     longitude DECIMAL(9,6) NOT NULL,
     timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT check_latitude_valida CHECK (latitude >= -90 AND latitude <= 90),
-    CONSTRAINT check_longitude_valida CHECK (longitude >= -180 AND longitude <= 180)
+    CONSTRAINT check_latitude_valid CHECK (latitude >= -90 AND latitude <= 90),
+    CONSTRAINT check_longitude_valid CHECK (longitude >= -180 AND longitude <= 180)
 );
 
-CREATE INDEX idx_historico_localizacao_usuario ON public.historico_localizacao_usuario(usuario_id);
-CREATE INDEX idx_historico_localizacao_timestamp ON public.historico_localizacao_usuario(timestamp DESC);
-CREATE INDEX idx_historico_localizacao_coordenadas ON public.historico_localizacao_usuario(latitude, longitude);
-CREATE INDEX idx_historico_localizacao_usuario_timestamp ON public.historico_localizacao_usuario(usuario_id, timestamp DESC);
+CREATE INDEX idx_user_location_history_user ON public.user_location_history(user_id);
+CREATE INDEX idx_user_location_history_timestamp ON public.user_location_history(timestamp DESC);
+CREATE INDEX idx_user_location_history_coordinates ON public.user_location_history(latitude, longitude);
+CREATE INDEX idx_user_location_history_user_timestamp ON public.user_location_history(user_id, timestamp DESC);

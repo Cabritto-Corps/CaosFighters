@@ -1,8 +1,8 @@
-CREATE TABLE public.categorias (
+CREATE TABLE public.tiers (
     id SERIAL PRIMARY KEY,
-    nome TEXT UNIQUE NOT NULL,
-    descricao TEXT,
+    name TEXT UNIQUE NOT NULL,
+    description TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_categorias_nome ON public.categorias(nome);
+CREATE INDEX idx_tiers_name ON public.tiers(name);

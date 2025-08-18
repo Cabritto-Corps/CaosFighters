@@ -1,13 +1,13 @@
-CREATE TABLE public.pontos_seguros (
+CREATE TABLE public.safe_spots (
     id SERIAL PRIMARY KEY,
-    nome TEXT NOT NULL,
+    name TEXT NOT NULL,
     latitude DECIMAL(9,6) NOT NULL,
     longitude DECIMAL(9,6) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT check_latitude_valida CHECK (latitude >= -90 AND latitude <= 90),
-    CONSTRAINT check_longitude_valida CHECK (longitude >= -180 AND longitude <= 180)
+    CONSTRAINT check_latitude_valid CHECK (latitude >= -90 AND latitude <= 90),
+    CONSTRAINT check_longitude_valid CHECK (longitude >= -180 AND longitude <= 180)
 );
 
-CREATE INDEX idx_pontos_seguros_nome ON public.pontos_seguros(nome);
-CREATE INDEX idx_pontos_seguros_coordenadas ON public.pontos_seguros(latitude, longitude);
-CREATE INDEX idx_pontos_seguros_created_at ON public.pontos_seguros(created_at);
+CREATE INDEX idx_safe_spots_name ON public.safe_spots(name);
+CREATE INDEX idx_safe_spots_coordinates ON public.safe_spots(latitude, longitude);
+CREATE INDEX idx_safe_spots_created_at ON public.safe_spots(created_at);

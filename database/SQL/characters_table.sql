@@ -1,14 +1,11 @@
-CREATE TABLE public.personagens (
+CREATE TABLE public.characters (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    categoria_id INTEGER NOT NULL REFERENCES public.categorias(id) ON DELETE RESTRICT,
-    nome TEXT UNIQUE NOT NULL,
-    agilidade INTEGER NOT NULL CHECK (agilidade > 0),
-    forca INTEGER NOT NULL CHECK (forca > 0),
-    hp INTEGER NOT NULL CHECK (hp > 0),
-    defesa INTEGER NOT NULL CHECK (defesa > 0),
+    tier_id INTEGER NOT NULL REFERENCES public.tiers(id) ON DELETE RESTRICT,
+    name TEXT UNIQUE NOT NULL,
+    status JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_personagens_categoria ON public.personagens(categoria_id);
-CREATE INDEX idx_personagens_nome ON public.personagens(nome);
-CREATE INDEX idx_personagens_stats ON public.personagens(agilidade, forca, hp, defesa);
+CREATE INDEX idx_characters_tier ON public.characters(tier_id);
+CREATE INDEX idx_characters_name ON public.characters(name);
+CREATE INDEX idx_characters_status ON public.characters USING GIN (status);

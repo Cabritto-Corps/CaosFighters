@@ -38,10 +38,7 @@ erDiagram
         uuid id PK
         integer tier_id FK
         text name
-        integer agility
-        integer strength
-        integer hp
-        integer defense
+        jsonb status
     }
 
     battles {
@@ -154,15 +151,14 @@ Stores the playable characters with their attributes and associated tier.
 | `id` | `uuid` | **Primary Key.** Unique character identifier. |
 | `tier_id` | `integer` | **Foreign Key** to `tiers.id`, indicating the character's strength. |
 | `name` | `text` | The character's name. Must be unique. |
-| `agility` | `integer` | The agility attribute. |
-| `strength` | `integer` | The strength attribute. |
-| `hp` | `integer` | Health Points. |
-| `defense` | `integer` | The defense attribute. |
+| `status` | `jsonb` | Character attributes stored as JSON (agility, strength, hp, defense). |
 
 #### Motivation and Design Choices
 
-  - The relational structure simplifies balancing, filtering, and complex queries.
+  - **JSONB for flexibility**: Character attributes are stored as JSONB to allow easy addition of new stats without schema changes.
+  - **PostgreSQL JSONB benefits**: Efficient storage, indexing with GIN, and powerful querying capabilities.
   - The association with `tiers` provides a clear and manageable indication of each character's relative power.
+  - **Example status structure**: `{"agility": 15, "strength": 25, "hp": 100, "defense": 20}`
 
 -----
 

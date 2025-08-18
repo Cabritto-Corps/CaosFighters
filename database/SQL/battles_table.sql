@@ -1,22 +1,22 @@
-CREATE TABLE public.batalhas (
+CREATE TABLE public.battles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    jogador1_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    jogador2_id UUID NOT NULL REFERENCES public.usuarios(id) ON DELETE CASCADE,
-    personagem1_id UUID NOT NULL REFERENCES public.personagens(id) ON DELETE RESTRICT,
-    personagem2_id UUID NOT NULL REFERENCES public.personagens(id) ON DELETE RESTRICT,
-    vencedor_id UUID REFERENCES public.usuarios(id) ON DELETE SET NULL,
-    duracao INTERVAL,
-    timestamp_batalha TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    player1_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    player2_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    character1_id UUID NOT NULL REFERENCES public.characters(id) ON DELETE RESTRICT,
+    character2_id UUID NOT NULL REFERENCES public.characters(id) ON DELETE RESTRICT,
+    winner_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    duration INTERVAL,
+    battle_timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT check_jogadores_diferentes CHECK (jogador1_id != jogador2_id),
-    CONSTRAINT check_personagens_diferentes CHECK (personagem1_id != personagem2_id),
-    CONSTRAINT check_vencedor_valido CHECK (vencedor_id IS NULL OR vencedor_id = jogador1_id OR vencedor_id = jogador2_id)
+    CONSTRAINT check_players_different CHECK (player1_id != player2_id),
+    CONSTRAINT check_characters_different CHECK (character1_id != character2_id),
+    CONSTRAINT check_winner_valid CHECK (winner_id IS NULL OR winner_id = player1_id OR winner_id = player2_id)
 );
 
-CREATE INDEX idx_batalhas_jogador1 ON public.batalhas(jogador1_id);
-CREATE INDEX idx_batalhas_jogador2 ON public.batalhas(jogador2_id);
-CREATE INDEX idx_batalhas_vencedor ON public.batalhas(vencedor_id);
-CREATE INDEX idx_batalhas_timestamp ON public.batalhas(timestamp_batalha DESC);
-CREATE INDEX idx_batalhas_personagem1 ON public.batalhas(personagem1_id);
-CREATE INDEX idx_batalhas_personagem2 ON public.batalhas(personagem2_id);
-CREATE INDEX idx_batalhas_duracao ON public.batalhas(duracao);
+CREATE INDEX idx_battles_player1 ON public.battles(player1_id);
+CREATE INDEX idx_battles_player2 ON public.battles(player2_id);
+CREATE INDEX idx_battles_winner ON public.battles(winner_id);
+CREATE INDEX idx_battles_timestamp ON public.battles(battle_timestamp DESC);
+CREATE INDEX idx_battles_character1 ON public.battles(character1_id);
+CREATE INDEX idx_battles_character2 ON public.battles(character2_id);
+CREATE INDEX idx_battles_duration ON public.battles(duration);

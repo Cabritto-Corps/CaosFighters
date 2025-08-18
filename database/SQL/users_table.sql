@@ -1,15 +1,15 @@
-CREATE TABLE public.usuarios (
+CREATE TABLE public.users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nome TEXT NOT NULL,
+    name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
-    senha TEXT NOT NULL,
-    pontos INTEGER NOT NULL DEFAULT 0,
+    password TEXT NOT NULL,
+    points INTEGER NOT NULL DEFAULT 0,
     ranking INTEGER,
-    status TEXT NOT NULL DEFAULT 'ativo' CHECK (status IN ('ativo', 'inativo', 'pendente')),
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'pending')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_usuarios_email ON public.usuarios(email);
-CREATE INDEX idx_usuarios_pontos_desc ON public.usuarios(pontos DESC);
-CREATE INDEX idx_usuarios_ranking ON public.usuarios(ranking);
-CREATE INDEX idx_usuarios_status ON public.usuarios(status);
+CREATE INDEX idx_users_email ON public.users(email);
+CREATE INDEX idx_users_points_desc ON public.users(points DESC);
+CREATE INDEX idx_users_ranking ON public.users(ranking);
+CREATE INDEX idx_users_status ON public.users(status);
