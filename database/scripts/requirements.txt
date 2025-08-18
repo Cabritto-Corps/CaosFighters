@@ -1,0 +1,3 @@
+# Requirements for the Pokemon character population script
+requests>=2.31.0
+psycopg2-binary>=2.9.7
