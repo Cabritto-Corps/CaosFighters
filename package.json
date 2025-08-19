@@ -1,6 +1,6 @@
 {
     "name": "poo",
-    "main": "src/App.tsx",
+    "main": "expo-router/entry",
     "version": "1.0.0",
     "scripts": {
         "start": "expo start",
@@ -60,6 +60,7 @@
         "@types/express": "^5.0.3",
         "@types/jest": "^30.0.0",
         "@types/react": "~19.0.10",
+        "@types/react-native": "^0.73.0",
         "@typescript-eslint/eslint-plugin": "^8.39.0",
         "@typescript-eslint/parser": "^8.39.0",
         "babel-plugin-module-resolver": "^5.0.2",
