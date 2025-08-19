@@ -11,6 +11,9 @@ expo-env.d.ts
 android/
 ios/
 
+coverage/
+backend/coverage/
+
 # Native
 .kotlin/
 *.orig.*
