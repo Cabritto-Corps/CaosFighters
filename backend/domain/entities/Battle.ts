@@ -12,6 +12,7 @@ export interface BattleState {
     player2: BattleParticipant
     winnerId: string | null
     currentTurn: string | null
+    status: BattleStatus
     duration: number | null
     battleTimestamp: Date
     createdAt: Date
@@ -68,7 +69,7 @@ export class Battle {
         if (this._status !== 'pending') {
             throw new Error('Battle can only be started when pending')
         }
-        
+
         this._status = 'active'
         this._currentTurn = this._player1.userId
         this._battleTimestamp = new Date()
@@ -93,7 +94,7 @@ export class Battle {
         if (this._status === 'completed') {
             throw new Error('Cannot cancel a completed battle')
         }
-        
+
         this._status = 'cancelled'
         this._currentTurn = null
     }
@@ -103,8 +104,8 @@ export class Battle {
             throw new Error('Can only switch turns during active battle')
         }
 
-        this._currentTurn = this._currentTurn === this._player1.userId 
-            ? this._player2.userId 
+        this._currentTurn = this._currentTurn === this._player1.userId
+            ? this._player2.userId
             : this._player1.userId
     }
 
@@ -188,6 +189,7 @@ export class Battle {
             player2: { ...this._player2 },
             winnerId: this._winnerId,
             currentTurn: this._currentTurn,
+            status: this._status,
             duration: this._duration,
             battleTimestamp: this._battleTimestamp,
             createdAt: this._createdAt
