@@ -1,9 +1,10 @@
-import { View, Text } from "react-native";
+import { View, Text, Button } from "react-native";
 
 export default function Home() {
   return (
-    <View>
-      <Text>Hello World 🚀 Bernardo é viadoo</Text>
+    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <Text>Hello World 🚀</Text>
+      <Button title="Click me" onPress={() => alert("Button pressed")} />
     </View>
   );
 }
