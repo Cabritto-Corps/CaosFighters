@@ -49,7 +49,21 @@ erDiagram
         uuid character2_id FK
         uuid winner_id FK
         interval duration
+        jsonb moves_used
         timestamptz battle_timestamp
+    }
+
+    moves {
+        uuid id PK
+        text move_name
+        jsonb move_info
+    }
+
+    character_moves {
+        uuid id PK
+        uuid character_id FK
+        uuid move_id FK
+        integer move_slot
     }
 
     user_location_history {
@@ -73,6 +87,8 @@ erDiagram
     users ||--o{ user_location_history : "has"
     characters ||--o{ battles : "character1"
     characters ||--o{ battles : "character2"
+    characters ||--o{ character_moves : "has"
+    moves ||--o{ character_moves : "belongs to"
     tiers ||--o{ characters : "belongs to"
     tiers ||--o{ ranking : "defines"
 ```
@@ -175,6 +191,7 @@ Records the complete history of every battle that occurred between users.
 | `character2_id` | `uuid` | **Foreign Key** to `characters.id` used by player 2. |
 | `winner_id` | `uuid` | **Foreign Key** to `users.id`. Can be null in case of a draw. |
 | `duration` | `interval` | The duration of the battle (e.g., '00:05:30'). |
+| `moves_used` | `jsonb` | JSONB array tracking moves used by each character during the battle. |
 | `battle_timestamp` | `timestamptz`| The timestamp of when the battle took place. |
 
 #### Motivation and Design Choices
@@ -223,7 +240,45 @@ Maintains a record of all locations a user has visited.
   - Storing the history in PostgreSQL allows `JOINs` with other tables (users, battles) for rich, contextual analysis.
   - The separation of *current* location (in MongoDB) and *history* (in PostgreSQL) is a strategic decision to optimize performance for frequent writes and analytical reads.
 
-<!-- end list -->
+-----
 
-```
+### 8\. `moves`
+
+Stores all available moves that characters can learn and use in battles.
+
+| Column | Data Type | Description |
+| :--- | :--- | :--- |
+| `id` | `uuid` | **Primary Key.** Unique move identifier. |
+| `move_name` | `text` | The name of the move (e.g., 'Thunderbolt', 'Fire Blast'). |
+| `move_info` | `jsonb` | JSONB object containing move details like type, power, accuracy, PP, etc. |
+| `created_at` | `timestamptz` | The timestamp when the move was added to the system. |
+
+#### Motivation and Design Choices
+
+  - JSONB format allows flexible storage of move attributes without rigid schema constraints.
+  - Enables easy querying and filtering of moves by type, power, or other attributes.
+  - Supports future expansion of move properties without schema changes.
+
+-----
+
+### 9\. `character_moves`
+
+Junction table establishing the many-to-many relationship between characters and their available moves.
+
+| Column | Data Type | Description |
+| :--- | :--- | :--- |
+| `id` | `uuid` | **Primary Key.** Unique relationship identifier. |
+| `character_id` | `uuid` | **Foreign Key** to `characters.id`. |
+| `move_id` | `uuid` | **Foreign Key** to `moves.id`. |
+| `move_slot` | `integer` | The slot position (1-4) where the move is equipped. |
+| `created_at` | `timestamptz` | The timestamp when the move was assigned to the character. |
+
+#### Motivation and Design Choices
+
+  - Implements the classic Pokemon-style move system where each character can have up to 4 moves.
+  - Unique constraints ensure no duplicate moves per character and only one move per slot.
+  - Supports dynamic move learning and forgetting mechanics.
+  - Enables battle system to validate move usage and track move history.
+
+<!-- end list -->
 ```
