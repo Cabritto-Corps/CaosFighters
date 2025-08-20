@@ -20,8 +20,7 @@ def load_db_config() -> Dict[str, str]:
     config_start = content.find('DB_CONFIG={')
     if config_start == -1:
         raise ValueError("DB_CONFIG not found in .env file")
-    
-    # Extract the JSON part
+
     json_start = content.find('{', config_start)
     json_end = content.find('}', json_start) + 1
     config_json = content[json_start:json_end]
