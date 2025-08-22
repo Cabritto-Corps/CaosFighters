@@ -5,9 +5,37 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <StatusBar style="auto" />
-      <Stack>
-        <Stack.Screen name="index" options={{ title: 'Home' }} />
+      <StatusBar style="light" backgroundColor="#1a1a2e" />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: '#1a1a2e' },
+          animation: 'slide_from_right',
+        }}
+      >
+        <Stack.Screen 
+          name="index" 
+          options={{ 
+            title: 'Battle Arena',
+            headerShown: false,
+          }} 
+        />
+        <Stack.Screen 
+          name="(auth)/login" 
+          options={{ 
+            title: 'Entrar na Arena',
+            headerShown: false,
+            presentation: 'modal',
+          }} 
+        />
+        <Stack.Screen 
+          name="(auth)/register" 
+          options={{ 
+            title: 'Novo Guerreiro',
+            headerShown: false,
+            presentation: 'modal',
+          }} 
+        />
       </Stack>
     </SafeAreaProvider>
   );
