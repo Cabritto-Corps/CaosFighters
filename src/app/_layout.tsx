@@ -5,7 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <StatusBar style="light" backgroundColor="#1a1a2e" />
+      <StatusBar style="auto" backgroundColor="#1a1a2e" />
       <Stack
         screenOptions={{
           headerShown: false,
@@ -16,7 +16,7 @@ export default function RootLayout() {
         <Stack.Screen 
           name="index" 
           options={{ 
-            title: 'Battle Arena',
+            title: 'Caos Fighters',
             headerShown: false,
           }} 
         />

@@ -6,6 +6,7 @@ import {
   Animated,
   Dimensions,
   Easing,
+  Image,
   Pressable,
   Text,
   View
@@ -100,135 +101,38 @@ export default function WelcomeScreen() {
         style={{
           flex: 1,
           paddingHorizontal: 32,
-          paddingTop: 80,
-          paddingBottom: 60,
-          justifyContent: 'space-between',
+          paddingVertical: 40,
+          justifyContent: 'center',
+          alignItems: 'center',
           opacity: fadeAnim,
           transform: [{ scale: scaleAnim }],
         }}
       >
-        {/* Header do jogo */}
-        <View style={{ alignItems: 'center', marginTop: 40 }}>
-          <Text style={{
-            fontSize: 48,
-            fontWeight: '900',
-            color: '#FFD700',
-            textAlign: 'center',
-            letterSpacing: 3,
-            textShadowColor: '#FF4444',
-            textShadowOffset: { width: 3, height: 3 },
-            textShadowRadius: 10,
-            marginBottom: 8,
-          }}>
-            BATTLE
-          </Text>
-          <Text style={{
-            fontSize: 36,
-            fontWeight: '700',
-            color: '#FF6B6B',
-            textAlign: 'center',
-            letterSpacing: 2,
-            textShadowColor: '#000',
-            textShadowOffset: { width: 2, height: 2 },
-            textShadowRadius: 5,
-            marginBottom: 16,
-          }}>
-            ARENA
-          </Text>
-          
-          <View style={{
-            width: 120,
-            height: 4,
-            backgroundColor: '#FFD700',
-            borderRadius: 2,
-            marginBottom: 32,
-            shadowColor: '#FFD700',
-            shadowOpacity: 0.8,
-            shadowRadius: 10,
-            elevation: 10,
-          }} />
-
-          <Text style={{
-            fontSize: 18,
-            color: '#A0A0A0',
-            textAlign: 'center',
-            lineHeight: 26,
-            letterSpacing: 1,
-          }}>
-            Prepare-se para batalhas épicas!{'\n'}
-            Escolha seus lutadores e domine a arena!
-          </Text>
-        </View>
-
-        {/* Área central com ícones de energia */}
-        <View style={{
-          alignItems: 'center',
-          justifyContent: 'center',
-          flex: 1,
-        }}>
-          {/* Círculo de energia central */}
+        {/* Logo principal */}
+        <View style={{ alignItems: 'center', marginBottom: 40 }}>
           <Animated.View style={{
-            width: 150,
-            height: 150,
-            borderRadius: 100,
-            borderWidth: 3,
-            borderColor: '#FFD700',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: 'rgba(255, 215, 0, 0.1)',
             transform: [{ scale: pulseAnim }],
+            marginBottom: 30,
           }}>
-            <Text style={{
-              fontSize: 40,
-              color: '#FFD700',
-            }}>
-              ⚡
-            </Text>
-            <Text style={{
-              fontSize: 16,
-              color: '#FFD700',
-              fontWeight: '600',
-              letterSpacing: 1,
-              marginTop: 8,
-            }}>
-              ENERGIA
-            </Text>
+            <Image 
+              source={require('../../assets/images/LogoInicial.png')}
+              style={{
+                width: 400,
+                height: 350,
+                resizeMode: 'contain'
+              }}
+            />
           </Animated.View>
-
-          {/* Símbolos flutuantes */}
-          <View style={{
-            position: 'absolute',
-            width: 300,
-            height: 300,
-            justifyContent: 'space-around',
-            alignItems: 'center',
-          }}>
-            {['🔥', '💧', '🌿', '⚡'].map((emoji, index) => (
-              <Text
-                key={index}
-                style={{
-                  position: 'absolute',
-                  fontSize: 30,
-                  top: index * 75,
-                  left: (index % 2) * 250,
-                  transform: [
-                    { rotate: `${index * 90}deg` }
-                  ],
-                  opacity: 0.7,
-                }}
-              >
-                {emoji}
-              </Text>
-            ))}
-          </View>
         </View>
 
         {/* Botões de ação */}
-        <View style={{ gap: 16 }}>
+        <View style={{ gap: 16, width: '100%' }}>
           <Pressable
             onPress={() => router.push("/(auth)/login")}
             style={({ pressed }) => ({
-              backgroundColor: pressed ? '#FF4444' : '#FF6B6B',
+              backgroundColor: pressed ? '#FF4444' : '#90CC56',
               paddingVertical: 18,
               paddingHorizontal: 40,
               borderRadius: 25,
@@ -252,7 +156,7 @@ export default function WelcomeScreen() {
               textShadowOffset: { width: 1, height: 1 },
               textShadowRadius: 3,
             }}>
-              ⚔️ ENTRAR NA ARENA
+              ENTRAR NA ARENA
             </Text>
           </Pressable>
 
@@ -275,7 +179,7 @@ export default function WelcomeScreen() {
               fontWeight: '700',
               letterSpacing: 1,
             }}>
-              🛡️ CRIAR CONTA
+              CRIAR CONTA
             </Text>
           </Pressable>
 

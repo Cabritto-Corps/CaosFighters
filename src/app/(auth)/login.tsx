@@ -133,7 +133,7 @@ export default function LoginScreen() {
           >
             {/* Header de volta à arena */}
             <Pressable
-              onPress={() => router.back()}
+              onPress={() => router.push("/")}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -160,7 +160,7 @@ export default function LoginScreen() {
                 textShadowRadius: 8,
                 marginBottom: 8,
               }}>
-                ⚔️ ENTRAR ⚔️
+                ENTRAR
               </Text>
               <Text style={{
                 color: '#A0A0A0',
@@ -204,7 +204,7 @@ export default function LoginScreen() {
                   fontSize: 16,
                   letterSpacing: 1,
                 }}>
-                  📧 EMAIL DE COMBATE
+                  EMAIL
                 </Text>
                 <TextInput
                   value={email}
@@ -247,7 +247,7 @@ export default function LoginScreen() {
                   fontSize: 16,
                   letterSpacing: 1,
                 }}>
-                  🔐 CÓDIGO SECRETO
+                  SENHA
                 </Text>
                 <View
                   style={{
@@ -334,7 +334,7 @@ export default function LoginScreen() {
                 onPress={handleLogin}
                 disabled={!formValid || loading}
                 style={({ pressed }) => ({
-                  backgroundColor: !formValid || loading ? "#444" : "#FF6B6B",
+                  backgroundColor: !formValid || loading ? "#444" : "#90CC56",
                   paddingVertical: 16,
                   borderRadius: 20,
                   alignItems: "center",
@@ -372,7 +372,7 @@ export default function LoginScreen() {
                       textShadowRadius: 3,
                     }}
                   >
-                    🚀 ENTRAR NA BATALHA
+                     ENTRAR NA BATALHA
                   </Text>
                 )}
               </Pressable>
@@ -403,7 +403,7 @@ export default function LoginScreen() {
                     fontSize: 14,
                     letterSpacing: 0.5,
                   }}>
-                    🛡️ Criar Conta
+                    Criar Conta
                   </Text>
                 </Pressable>
               </Link>

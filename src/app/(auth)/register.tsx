@@ -143,7 +143,7 @@ export default function RegisterScreen() {
           >
             {/* Header de volta à arena */}
             <Pressable
-              onPress={() => router.back()}
+              onPress={() => router.push("/")}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -170,7 +170,7 @@ export default function RegisterScreen() {
                 textShadowRadius: 8,
                 marginBottom: 8,
               }}>
-                🛡️ NOVO GUERREIRO 🛡️
+                NOVO GUERREIRO
               </Text>
               <Text style={{
                 color: '#A0A0A0',
@@ -219,7 +219,7 @@ export default function RegisterScreen() {
                   fontSize: 16,
                   letterSpacing: 1,
                 }}>
-                  👤 NOME DO GUERREIRO
+                   NOME DO GUERREIRO
                 </Text>
                 <TextInput
                   value={name}
@@ -248,12 +248,12 @@ export default function RegisterScreen() {
                   fontSize: 16,
                   letterSpacing: 1,
                 }}>
-                  📧 EMAIL DE GUERRA
+                  EMAIL DE GUERRA
                 </Text>
                 <TextInput
                   value={email}
                   onChangeText={setEmail}
-                  placeholder="seu.email@arena.com"
+                  placeholder="seu.email@gmail.com"
                   placeholderTextColor="#666"
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -290,7 +290,7 @@ export default function RegisterScreen() {
                   fontSize: 16,
                   letterSpacing: 1,
                 }}>
-                  🗝️ CÓDIGO SECRETO
+                  SENHA
                 </Text>
                 <View
                   style={{
@@ -360,12 +360,12 @@ export default function RegisterScreen() {
                   fontSize: 16,
                   letterSpacing: 1,
                 }}>
-                  🔒 CONFIRMAR CÓDIGO
+                  CONFIRMAR SENHA
                 </Text>
                 <TextInput
                   value={confirm}
                   onChangeText={setConfirm}
-                  placeholder="Repita seu código secreto"
+                  placeholder="••••••••"
                   placeholderTextColor="#666"
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
@@ -437,7 +437,7 @@ export default function RegisterScreen() {
                       letterSpacing: 1.5,
                     }}
                   >
-                    🎮 ENTRAR NA ARENA
+                    ENTRAR NA ARENA
                   </Text>
                 )}
               </Pressable>
@@ -468,7 +468,7 @@ export default function RegisterScreen() {
                     fontSize: 14,
                     letterSpacing: 0.5,
                   }}>
-                    ⚔️ Fazer Login
+                    Fazer Login
                   </Text>
                 </Pressable>
               </Link>
