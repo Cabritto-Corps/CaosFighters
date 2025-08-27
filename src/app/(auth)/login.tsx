@@ -63,7 +63,7 @@ export default function LoginScreen() {
       // Simulação de login (troque pela sua API/fetch)
       await new Promise((r) => setTimeout(r, 1200));
       // Exemplo simples: aceita qualquer email e senha >= 6
-      router.replace("../app/index"); // ajuste para a sua rota pós-login
+      router.push("../main"); // Redireciona para a tela principal após login
     } catch (e) {
       Alert.alert("Erro", "Não foi possível entrar. Tente novamente.");
     } finally {

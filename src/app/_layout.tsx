@@ -36,6 +36,13 @@ export default function RootLayout() {
             presentation: 'modal',
           }} 
         />
+        <Stack.Screen 
+          name="main" 
+          options={{ 
+            title: 'Arena Principal',
+            headerShown: false,
+          }} 
+        />
       </Stack>
     </SafeAreaProvider>
   );
