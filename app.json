@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "poo",
-    "slug": "poo",
+    "name": "Caos Fighters",
+    "slug": "caos-fighters",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/LogoCaosFighters.png",
