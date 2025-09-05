@@ -1,0 +1,116 @@
+---
+alwaysApply: true
+---
+# React Native - Desenvolvimento Mobile
+
+## Componentes e UI
+
+### Estrutura de Componentes
+- Componentes funcionais com hooks em vez de classes
+- Um componente por arquivo, nome do arquivo igual ao componente
+- Organize componentes em [src/components/](mdc:src/components/) por funcionalidade
+
+### Styling Mobile-First
+- Use StyleSheet.create() para performance otimizada
+- Implemente design responsivo para diferentes tamanhos de tela
+- Considere safe areas para diferentes dispositivos
+
+```typescript
+const styles = StyleSheet.create({
+  battleScreen: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  attackButton: {
+    minHeight: 44, // Área tocável mínima iOS
+    paddingHorizontal: 16,
+  },
+});
+```
+
+### Gerenciamento de Estado
+- Use Context API para estado global do jogo
+- Implemente estado local com useState para UI
+- Use useEffect com cleanup adequado
+
+### Performance Mobile
+
+#### Otimizações Críticas
+- Use FlatList para listas grandes de personagens
+- Implemente Image lazy loading
+- Use React.memo para componentes que re-renderizam frequentemente
+- Evite criação de objetos/funções desnecessárias no render
+
+```typescript
+// BOM - memorizado
+const AttackButton = React.memo(({ attack, onPress }: AttackButtonProps) => {
+  return <Pressable onPress={() => onPress(attack)} />;
+});
+
+// EVITE - recria função a cada render
+const AttackButton = ({ attack, onPress }) => {
+  return <Pressable onPress={() => onPress(attack)} />;
+};
+```
+
+### Navegação com Expo Router
+- File-based routing em [src/app/](mdc:src/app/)
+- [_layout.tsx](mdc:src/app/_layout.tsx) para configuração de stack
+- Rotas organizadas: `(auth)/`, `battle.tsx`, `profile.tsx`
+- Use `router.push()` e `router.replace()` para navegação programática
+
+```typescript
+import { router } from 'expo-router';
+
+// Navegar para batalha após matchmaking
+const startBattle = (battleId: string) => {
+  router.push(`/battle?id=${battleId}`);
+};
+
+// Configuração de rota com parâmetros
+// src/app/battle.tsx
+export default function BattlePage() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  // lógica da batalha
+}
+```
+
+### Audio e Assets com Expo
+- Use expo-av para música: [src/utils/MusicManager.ts](mdc:src/utils/MusicManager.ts)
+- expo-asset para preload de imagens de personagens
+- [assets/sounds/](mdc:assets/sounds/) para efeitos sonoros
+- [assets/images/](mdc:assets/images/) para sprites e UI
+
+```typescript
+import { Audio } from 'expo-av';
+import { Asset } from 'expo-asset';
+
+// Preload assets críticos
+const preloadGameAssets = async () => {
+  const audioAssets = [
+    require('../assets/sounds/attack-hit.wav'),
+    require('../assets/sounds/musicadefundo.wav'),
+  ];
+  
+  const imageAssets = [
+    require('../assets/images/pikachu.png'),
+    require('../assets/images/vindiesel.png'),
+  ];
+
+  await Promise.all([
+    ...audioAssets.map(Audio.Sound.createAsync),
+    ...imageAssets.map(Asset.fromModule),
+  ]);
+};
+```
+
+### Acessibilidade
+- Sempre adicione accessibilityLabel para elementos interativos
+- Use accessibilityRole apropriado
+- Teste com screen readers
+
+### Tratamento de Erros Mobile
+- Implemente fallbacks para falha de rede
+- Use Alert.alert() para erros críticos
+- Mantenha logs detalhados para debugging em produção

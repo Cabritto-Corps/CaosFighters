@@ -3,17 +3,17 @@ import { Link, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Animated,
-    Dimensions,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    ScrollView,
-    Text,
-    TextInput,
-    View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
 const { width } = Dimensions.get("window");
@@ -324,7 +324,7 @@ export default function LoginScreen() {
                     fontWeight: '600',
                     letterSpacing: 0.5,
                   }}>
-                    🔮 Esqueci meu código
+                    Esqueci minha senha
                   </Text>
                 </Pressable>
               </View>
@@ -334,12 +334,12 @@ export default function LoginScreen() {
                 onPress={handleLogin}
                 disabled={!formValid || loading}
                 style={({ pressed }) => ({
-                  backgroundColor: !formValid || loading ? "#444" : "#90CC56",
+                  backgroundColor: !formValid || loading ? "#444" : "#0F4D0F",
                   paddingVertical: 16,
                   borderRadius: 20,
                   alignItems: "center",
                   borderWidth: 2,
-                  borderColor: !formValid || loading ? "#666" : "#FFD700",
+                  borderColor: !formValid || loading ? "#666" : "#666",
                   shadowColor: !formValid || loading ? "#000" : "#FF6B6B",
                   shadowOpacity: 0.5,
                   shadowRadius: 15,

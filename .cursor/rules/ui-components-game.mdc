@@ -1,0 +1,159 @@
+---
+globs: src/components/**/*.tsx
+---
+
+# UI Components - Game Design
+
+## Componentes de Batalha
+
+### Componentes Base ([src/components/ui/](mdc:src/components/ui/))
+- [ChaosButton.tsx](mdc:src/components/ui/ChaosButton.tsx) - Botões customizados do jogo
+- [ChaosModal.tsx](mdc:src/components/ui/ChaosModal.tsx) - Modals temáticos
+- [ChaoticBackground.tsx](mdc:src/components/ui/ChaoticBackground.tsx) - Backgrounds animados
+
+### Battle UI Requirements
+
+#### Attack Selection Interface
+```typescript
+interface AttackButtonProps {
+  attack: Attack;
+  isDisabled?: boolean;
+  onPress: (attack: Attack) => void;
+  cooldownRemaining?: number;
+}
+
+// Área mínima de toque: 44x44 para iOS, 48x48 para Android
+const AttackButton = ({ attack, onPress, isDisabled }: AttackButtonProps) => {
+  return (
+    <ChaosButton
+      style={[styles.attackButton, isDisabled && styles.disabled]}
+      onPress={() => onPress(attack)}
+      disabled={isDisabled}
+      accessibilityLabel={`Ataque: ${attack.name}`}
+    >
+      <Text style={styles.attackName}>{attack.name}</Text>
+      <Text style={styles.attackDamage}>Dano: {attack.damage}</Text>
+    </ChaosButton>
+  );
+};
+```
+
+#### Character Display
+- Health bar com animação smooth
+- Character sprite com estados (idle, attack, damaged, victory)
+- Status effects visíveis (buffs, debuffs)
+
+```typescript
+interface CharacterDisplayProps {
+  character: Character;
+  isCurrentTurn: boolean;
+  healthPercentage: number;
+}
+
+const CharacterDisplay = ({ character, healthPercentage }: CharacterDisplayProps) => {
+  return (
+    <View style={styles.characterContainer}>
+      <Image 
+        source={{ uri: character.spriteUrl }}
+        style={styles.characterSprite}
+        resizeMode="contain"
+      />
+      <HealthBar 
+        percentage={healthPercentage}
+        maxHealth={character.maxHealth}
+        currentHealth={character.health}
+      />
+    </View>
+  );
+};
+```
+
+### Responsive Design
+
+#### Screen Adaptations
+- Design funciona em orientação portrait e landscape
+- UI escala para diferentes tamanhos (phones, tablets)
+- Safe area consideration para iPhone notch
+
+```typescript
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const BattleScreen = () => {
+  const insets = useSafeAreaInsets();
+  
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* conteúdo da batalha */}
+    </View>
+  );
+};
+```
+
+#### Touch Targets
+- Botões de ataque com área mínima 44x44 pts
+- Spacing adequado entre elementos tocáveis
+- Feedback visual/tátil para todas as interações
+
+### Animation Guidelines
+
+#### Battle Animations
+- Smooth 60fps para ações críticas
+- Use LayoutAnimation para mudanças de estado
+- Expo GL para efeitos complexos se necessário
+
+```typescript
+import { LayoutAnimation } from 'react-native';
+
+const executeAttackAnimation = () => {
+  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+  // aplicar mudanças de estado
+};
+```
+
+#### Performance Considerations
+- Use native driver quando possível
+- Evite animações simultâneas pesadas
+- Cleanup listeners no unmount
+
+### Game UX Patterns
+
+#### Feedback Systems
+- Visual feedback para cada ação (damage numbers, effects)
+- Audio feedback coordenado com visual
+- Haptic feedback usando expo-haptics
+
+#### Loading States
+- Loading spinners para ações de rede
+- Skeleton screens para carregamento de dados
+- Progress indicators para ações longas
+
+#### Error States
+- [ResultModal.tsx](mdc:src/components/ui/ResultModal.tsx) para resultados
+- Fallbacks gracosos para falha de assets
+- Retry mechanisms para falhas de conexão
+
+### Accessibility for Games
+
+#### Screen Reader Support
+- Describes game state em texto
+- Navigate por elementos UI com assistive tech
+- Alternative inputs para motor disabilities
+
+#### Visual Accessibility  
+- Color contrast adequado para texto
+- Não dependa apenas de cor para informações críticas
+- Font sizing respeitando configurações do sistema
+
+```typescript
+const AttackButton = ({ attack }: AttackButtonProps) => {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Usar ataque ${attack.name}, dano ${attack.damage}`}
+      accessibilityHint="Toque duplo para executar ataque"
+    >
+      {/* conteúdo do botão */}
+    </Pressable>
+  );
+};
+```

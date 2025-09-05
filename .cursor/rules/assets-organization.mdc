@@ -1,0 +1,98 @@
+---
+alwaysApply: true
+---
+# Organização de Assets - Recursos do Jogo
+
+## Estrutura de Assets ([assets/](mdc:assets/))
+
+### Imagens
+- **Personagens**: PNG com transparência, resolução otimizada para mobile
+- **UI Elements**: Ícones em SVG quando possível
+- **Backgrounds**: JPEG otimizado para tamanhos de tela diversos
+
+#### Convenções de Nomenclatura
+```
+assets/images/
+├── characters/
+│   ├── character-001-idle.png
+│   ├── character-001-attack.png
+│   └── character-002-idle.png
+├── ui/
+│   ├── button-attack.png
+│   ├── health-bar-bg.png
+│   └── icon-settings.svg
+└── backgrounds/
+    ├── battle-arena-forest.jpg
+    └── menu-background.jpg
+```
+
+### Audio ([assets/sounds/](mdc:assets/sounds/))
+- **Efeitos**: WAV para efeitos curtos e impactantes
+- **Música**: MP3 comprimido para música de fundo
+- **Vozes**: AAC para melhor compressão
+
+#### Organização Sonora
+```
+assets/sounds/
+├── effects/
+│   ├── attack-hit.wav
+│   ├── character-damaged.wav
+│   └── victory-fanfare.wav
+├── music/
+│   ├── battle-theme.mp3
+│   └── menu-music.mp3
+└── ui/
+    ├── button-press.wav
+    └── menu-navigation.wav
+```
+
+## Otimização Mobile
+
+### Performance de Assets
+- Comprima imagens sem perda significativa de qualidade
+- Use formatos modernos (WebP) quando suportado
+- Implemente lazy loading para assets não críticos
+
+### Tamanhos de Bundle
+- Monitore tamanho total dos assets
+- Use asset optimization tools
+- Considere download sob demanda para conteúdo adicional
+
+## Componentes Visuais
+
+### Sistema de UI Customizado
+- Componentes base em [src/components/ui/](mdc:src/components/ui/)
+- Tema consistente para cores e tipografia
+- Animações suaves para transições
+
+### Batalha Visual
+- Animações de ataque fluidas
+- Feedback visual claro para ações
+- Indicadores de status (HP, turnos) sempre visíveis
+
+```typescript
+// Exemplo de componente de ataque visual
+interface AttackAnimationProps {
+  attack: Attack;
+  source: Character;
+  target: Character;
+  onComplete: () => void;
+}
+```
+
+### Responsividade
+- Adapte layouts para orientações portrait/landscape
+- Teste em diferentes tamanhos de tela
+- Use Dimensions API para layouts dinâmicos
+
+## Gerenciamento de Estado Visual
+
+### Battle UI State
+- Separe estado de UI do estado de jogo
+- Use animação de loading durante ações de rede
+- Implemente offline indicators quando necessário
+
+### User Preferences
+- Salve configurações de áudio/gráficos localmente
+- Implemente modo escuro/claro se relevante
+- Permita customização de controles

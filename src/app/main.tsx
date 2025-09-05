@@ -1,17 +1,19 @@
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState } from "react";
 import {
-    Alert,
-    Animated,
-    Dimensions,
-    Image,
-    Pressable,
-    ScrollView,
-    Text,
-    View
+  Animated,
+  Dimensions,
+  Image,
+  Pressable,
+  ScrollView,
+  Text,
+  View
 } from "react-native";
+import ChaosButton from "../components/ui/ChaosButton";
+import ChaoticBackground from "../components/ui/ChaoticBackground";
+import ConfigModal from "../components/ui/ConfigModal";
+import ResultModal from "../components/ui/ResultModal";
 
 const { width, height } = Dimensions.get("window");
 
@@ -22,7 +24,7 @@ const RANDOM_CHARACTERS = [
     name: "Pikachu",
     level: 15,
     power: 850,
-          image: require("../../assets/images/pikachu.jpg"),
+    image: require("../../assets/images/pikachu.png"),
     imageType: "file",
     description: "É pika e é chu"
   },
@@ -31,51 +33,24 @@ const RANDOM_CHARACTERS = [
     name: "Vin Diesel",
     level: 22,
     power: 1100,
-    image: require("../../assets/images/vindiesel.jpeg"),
+    image: require("../../assets/images/vindiesel.png"),
     imageType: "file",
     description: "É vin e é diesel"
   },
-  {
-    id: 3,
-    name: "Mago Elemental",
-    level: 12,
-    power: 720,
-    image: "🔮",
-    imageType: "emoji",
-    description: "Mestre dos elementos da natureza"
-  },
-  {
-    id: 4,
-    name: "Arqueiro Místico",
-    level: 18,
-    power: 950,
-    image: "🏹",
-    imageType: "emoji",
-    description: "Precisão letal com poderes arcanos"
-  },
-  {
-    id: 5,
-    name: "Dragão Ancestral",
-    level: 25,
-    power: 1200,
-    image: "🐉",
-    imageType: "emoji",
-    description: "Lenda viva dos tempos antigos"
-  },
-  {
-    id: 6,
-    name: "Ninja Sombra",
-    level: 20,
-    power: 1050,
-    image: "🥷",
-    imageType: "emoji",
-    description: "Assassino silencioso das sombras"
-  }
 ];
 
 export default function MainScreen() {
   const router = useRouter();
   const [currentCharacter, setCurrentCharacter] = useState(RANDOM_CHARACTERS[0]);
+  const [configModalVisible, setConfigModalVisible] = useState(false);
+  const [resultModalVisible, setResultModalVisible] = useState(false);
+  const [lastBattleResult, setLastBattleResult] = useState({
+    victory: true,
+    score: 1250,
+    enemyName: "Pikachu",
+    experience: 150,
+    coinsEarned: 75,
+  });
 
   // Função para renderizar a imagem ou emoji do personagem
   const renderCharacterImage = (character: typeof RANDOM_CHARACTERS[0]) => {
@@ -88,7 +63,6 @@ export default function MainScreen() {
             height: 120,
             resizeMode: 'contain',
             borderRadius: 15,
-            backgroundColor: 'rgba(255, 215, 0, 0.1)',
             padding: 10,
           }}
         />
@@ -113,6 +87,8 @@ export default function MainScreen() {
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
+    // Música agora é gerenciada globalmente pelo _layout.tsx
+
     // Animação de entrada
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -150,30 +126,31 @@ export default function MainScreen() {
       setCurrentCharacter(RANDOM_CHARACTERS[randomIndex]);
     }, 10000);
 
-    return () => clearInterval(characterInterval);
+    return () => {
+      clearInterval(characterInterval);
+    };
   }, []);
 
   const handleStartBattle = () => {
-    Alert.alert(
-      "Iniciar Batalha!",
-      `Deseja enfrentar ${currentCharacter.name}?\nPoder: ${currentCharacter.power}\nNível: ${currentCharacter.level}`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        { text: "BATALHAR!", onPress: () => Alert.alert("🔥", "Sistema de batalha em desenvolvimento!") }
-      ]
-    );
+    router.push({
+      pathname: "/battle" as any,
+      params: {
+        enemyName: currentCharacter.name,
+        enemyPower: currentCharacter.power,
+        enemyLevel: currentCharacter.level,
+        enemyIcon: currentCharacter.imageType === "emoji" ? currentCharacter.image : "👾"
+      }
+    });
   };
 
-  const handleItemShop = () => {
-    Alert.alert("🛒 Loja de Itens", "Funcionalidade em desenvolvimento!");
-  };
+
 
   const handleSettings = () => {
-    Alert.alert("⚙️ Configurações", "Funcionalidade em desenvolvimento!");
+    setConfigModalVisible(true);
   };
 
   const handleAccount = () => {
-    Alert.alert("👤 Conta", "Funcionalidade em desenvolvimento!");
+    router.push("/profile" as any);
   };
 
   const handleRandomizeCharacter = () => {
@@ -186,44 +163,13 @@ export default function MainScreen() {
     <View style={{ flex: 1 }}>
       <StatusBar style="light" />
       
-      {/* Background com gradiente */}
-      <LinearGradient
-        colors={['#1a1a2e', '#16213e', '#0f3460', '#1a1a2e']}
-        style={{
-          position: 'absolute',
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: 0,
-        }}
+      {/* Background caótico minimalista */}
+      <ChaoticBackground
+        colors={['#0f172a', '#1e293b', '#334155']}
+        particleCount={40}
+        particleColors={['#FFD700', '#FF6B6B', '#00FF88', '#0099FF']}
+        animated={true}
       />
-
-      {/* Efeito de pontos brilhantes no fundo */}
-      <View style={{
-        position: 'absolute',
-        width: width,
-        height: height,
-        opacity: 0.4,
-      }}>
-        {[...Array(40)].map((_, i) => (
-          <View
-            key={i}
-            style={{
-              position: 'absolute',
-              width: Math.random() * 3 + 1,
-              height: Math.random() * 3 + 1,
-              backgroundColor: '#FFD700',
-              borderRadius: 10,
-              left: Math.random() * width,
-              top: Math.random() * height,
-              shadowColor: '#FFD700',
-              shadowOpacity: 0.8,
-              shadowRadius: 4,
-              elevation: 4,
-            }}
-          />
-        ))}
-      </View>
 
       <ScrollView 
         contentContainerStyle={{ flexGrow: 1 }}
@@ -232,92 +178,94 @@ export default function MainScreen() {
         <Animated.View 
           style={{
             flex: 1,
-            paddingHorizontal: 20,
-            paddingTop: 50,
-            paddingBottom: 30,
+            paddingHorizontal: 24,
+            paddingTop: 60,
+            paddingBottom: 40,
             opacity: fadeAnim,
             transform: [{ scale: scaleAnim }],
           }}
         >
-          {/* Header com título e botão de conta */}
+          {/* Header minimalista */}
           <View style={{
             flexDirection: 'row',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: 30,
+            marginBottom: 50,
           }}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={{
-                fontSize: 28,
-                fontWeight: '900',
-                color: '#FFD700',
-                letterSpacing: 2,
-                textShadowColor: '#FF4444',
-                textShadowOffset: { width: 2, height: 2 },
-                textShadowRadius: 8,
+                fontSize: 24,
+                fontWeight: '700',
+                color: '#ffffff',
+                letterSpacing: 0.5,
               }}>
-                ARENA DE BATALHA
+                Arena de Batalha
               </Text>
               <Text style={{
-                color: '#A0A0A0',
+                color: '#94a3b8',
                 fontSize: 14,
-                letterSpacing: 1,
-                marginTop: 4,
+                marginTop: 2,
               }}>
-                Escolha sua próxima batalha
+                Prepare-se para a próxima batalha
               </Text>
             </View>
             
-            <Pressable
-              onPress={handleAccount}
-              style={({ pressed }) => ({
-                backgroundColor: 'rgba(255, 215, 0, 0.2)',
-                padding: 12,
-                borderRadius: 15,
-                borderWidth: 2,
-                borderColor: '#FFD700',
-                transform: [{ scale: pressed ? 0.9 : 1 }],
-              })}
-            >
-              <Text style={{ fontSize: 24 }}>👤</Text>
-            </Pressable>
+            {/* Ícones do header */}
+            <View style={{ flexDirection: 'row', gap: 16 }}>
+              <Pressable
+                onPress={handleSettings}
+                style={({ pressed }) => ({
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  padding: 10,
+                  borderRadius: 12,
+                  transform: [{ scale: pressed ? 0.9 : 1 }],
+                })}
+              >
+                <Text style={{ fontSize: 20 }}>⚙️</Text>
+              </Pressable>
+              
+              <Pressable
+                onPress={handleAccount}
+                style={({ pressed }) => ({
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  padding: 10,
+                  borderRadius: 12,
+                  transform: [{ scale: pressed ? 0.9 : 1 }],
+                })}
+              >
+                <Text style={{ fontSize: 20 }}>👤</Text>
+              </Pressable>
+            </View>
           </View>
 
           {/* Personagem Central */}
           <Animated.View style={{
             alignItems: 'center',
-            marginVertical: 20,
-            transform: [
-              { scale: pulseAnim },
-            ],
+            marginVertical: 40,
+            transform: [{ scale: pulseAnim }],
           }}>
             <Pressable
               onPress={handleRandomizeCharacter}
               style={({ pressed }) => ({
-                backgroundColor: 'rgba(17, 24, 39, 0.9)',
-                borderRadius: 25,
-                padding: 20,
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                borderRadius: 24,
+                padding: 32,
                 alignItems: 'center',
-                borderWidth: 3,
-                borderColor: '#FFD700',
-                shadowColor: '#FFD700',
-                shadowOpacity: 0.6,
-                shadowRadius: 20,
-                elevation: 20,
-                minWidth: width * 0.8,
-                transform: [{ scale: pressed ? 0.95 : 1 }],
+                borderWidth: 1,
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                width: width * 0.85,
+                transform: [{ scale: pressed ? 0.98 : 1 }],
               })}
             >
-              <View style={{ marginBottom: 15 }}>
+              <View style={{ marginBottom: 20 }}>
                 {renderCharacterImage(currentCharacter)}
               </View>
               
               <Text style={{
-                fontSize: 24,
-                fontWeight: '800',
-                color: '#FFD700',
+                fontSize: 22,
+                fontWeight: '600',
+                color: '#ffffff',
                 textAlign: 'center',
-                letterSpacing: 1,
                 marginBottom: 8,
               }}>
                 {currentCharacter.name}
@@ -325,10 +273,10 @@ export default function MainScreen() {
               
               <Text style={{
                 fontSize: 14,
-                color: '#A0A0A0',
+                color: '#94a3b8',
                 textAlign: 'center',
-                marginBottom: 15,
-                paddingHorizontal: 20,
+                marginBottom: 24,
+                lineHeight: 20,
               }}>
                 {currentCharacter.description}
               </Text>
@@ -337,30 +285,28 @@ export default function MainScreen() {
                 flexDirection: 'row',
                 justifyContent: 'space-around',
                 width: '100%',
-                backgroundColor: 'rgba(255, 215, 0, 0.1)',
-                padding: 15,
-                borderRadius: 15,
-                borderWidth: 1,
-                borderColor: 'rgba(255, 215, 0, 0.3)',
+                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                padding: 16,
+                borderRadius: 16,
               }}>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={{ color: '#FFD700', fontSize: 12, fontWeight: '600' }}>NÍVEL</Text>
-                  <Text style={{ color: '#FFF', fontSize: 20, fontWeight: '800' }}>
+                  <Text style={{ color: '#94a3b8', fontSize: 12, fontWeight: '500' }}>Nível</Text>
+                  <Text style={{ color: '#ffffff', fontSize: 18, fontWeight: '600', marginTop: 4 }}>
                     {currentCharacter.level}
                   </Text>
                 </View>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={{ color: '#FFD700', fontSize: 12, fontWeight: '600' }}>PODER</Text>
-                  <Text style={{ color: '#FF6B6B', fontSize: 20, fontWeight: '800' }}>
+                  <Text style={{ color: '#94a3b8', fontSize: 12, fontWeight: '500' }}>Poder</Text>
+                  <Text style={{ color: '#f87171', fontSize: 18, fontWeight: '600', marginTop: 4 }}>
                     {currentCharacter.power}
                   </Text>
                 </View>
               </View>
               
               <Text style={{
-                color: '#666',
+                color: '#64748b',
                 fontSize: 12,
-                marginTop: 10,
+                marginTop: 16,
                 fontStyle: 'italic',
               }}>
                 Toque para trocar adversário
@@ -369,139 +315,42 @@ export default function MainScreen() {
           </Animated.View>
 
           {/* Botão Principal - Iniciar Batalha */}
-          <Pressable
-            onPress={handleStartBattle}
-            style={({ pressed }) => ({
-              backgroundColor: pressed ? '#FF4444' : '#90CC56',
-              paddingVertical: 20,
-              paddingHorizontal: 40,
-              borderRadius: 25,
-              alignItems: 'center',
-              marginVertical: 20,
-              borderWidth: 3,
-              borderColor: '#FFD700',
-              shadowColor: '#FF6B6B',
-              shadowOpacity: 0.6,
-              shadowRadius: 20,
-              shadowOffset: { width: 0, height: 10 },
-              elevation: 20,
-              transform: [{ scale: pressed ? 0.95 : 1 }],
-            })}
-          >
-            <Text style={{
-              color: 'white',
-              fontSize: 24,
-              fontWeight: '900',
-              letterSpacing: 2,
-              textShadowColor: '#000',
-              textShadowOffset: { width: 2, height: 2 },
-              textShadowRadius: 4,
-            }}>
-            INICIAR BATALHA
-            </Text>
-          </Pressable>
-
-          {/* Menu de Opções */}
-          <View style={{
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            justifyContent: 'space-between',
-            gap: 15,
-            marginTop: 20,
-          }}>
-            {/* Loja de Itens */}
-            <Pressable
-              onPress={handleItemShop}
-              style={({ pressed }) => ({
-                backgroundColor: 'rgba(17, 24, 39, 0.9)',
-                padding: 20,
-                borderRadius: 20,
-                alignItems: 'center',
-                borderWidth: 2,
-                borderColor: '#4F46E5',
-                width: (width - 55) / 2,
-                transform: [{ scale: pressed ? 0.95 : 1 }],
-              })}
-            >
-              <Text style={{ fontSize: 40, marginBottom: 10 }}>🛒</Text>
-              <Text style={{
-                color: '#4F46E5',
-                fontSize: 16,
-                fontWeight: '700',
-                textAlign: 'center',
-              }}>
-                LOJA DE ITENS
-              </Text>
-              <Text style={{
-                color: '#A0A0A0',
-                fontSize: 12,
-                textAlign: 'center',
-                marginTop: 5,
-              }}>
-                Equipamentos e poções
-              </Text>
-            </Pressable>
-
-            {/* Configurações */}
-            <Pressable
-              onPress={handleSettings}
-              style={({ pressed }) => ({
-                backgroundColor: 'rgba(17, 24, 39, 0.9)',
-                padding: 20,
-                borderRadius: 20,
-                alignItems: 'center',
-                borderWidth: 2,
-                borderColor: '#10B981',
-                width: (width - 55) / 2,
-                transform: [{ scale: pressed ? 0.95 : 1 }],
-              })}
-            >
-              <Text style={{ fontSize: 40, marginBottom: 10 }}>⚙️</Text>
-              <Text style={{
-                color: '#10B981',
-                fontSize: 16,
-                fontWeight: '700',
-                textAlign: 'center',
-              }}>
-                CONFIGURAÇÕES
-              </Text>
-              <Text style={{
-                color: '#A0A0A0',
-                fontSize: 12,
-                textAlign: 'center',
-                marginTop: 5,
-              }}>
-                Ajustes do jogo
-              </Text>
-            </Pressable>
+          <View style={{ marginVertical: 32 }}>
+            <ChaosButton
+              title="INICIAR BATALHA"
+              onPress={handleStartBattle}
+              variant="primary"
+              size="large"
+            />
           </View>
 
-          {/* Botão de Logout */}
-          <Pressable
-            onPress={() => router.replace("/")}
-            style={({ pressed }) => ({
-              backgroundColor: 'rgba(255, 68, 68, 0.2)',
-              paddingVertical: 15,
-              paddingHorizontal: 30,
-              borderRadius: 20,
-              alignItems: 'center',
-              marginTop: 30,
-              borderWidth: 2,
-              borderColor: '#FF4444',
-              transform: [{ scale: pressed ? 0.95 : 1 }],
-            })}
-          >
-            <Text style={{
-              color: '#FF6B6B',
-              fontSize: 16,
-              fontWeight: '700',
-              letterSpacing: 1,
-            }}>
-              🚪 SAIR DA ARENA
-            </Text>
-          </Pressable>
+          {/* Botão de Sair */}
+          <View style={{ marginTop: 24 }}>
+            <ChaosButton
+              title="← Sair da Arena"
+              onPress={() => router.replace("/")}
+              variant="secondary"
+              size="medium"
+            />
+          </View>
         </Animated.View>
       </ScrollView>
+
+      {/* Modais */}
+      <ConfigModal
+        visible={configModalVisible}
+        onClose={() => setConfigModalVisible(false)}
+      />
+
+      <ResultModal
+        visible={resultModalVisible}
+        onClose={() => setResultModalVisible(false)}
+        victory={lastBattleResult.victory}
+        score={lastBattleResult.score}
+        enemyName={lastBattleResult.enemyName}
+        experience={lastBattleResult.experience}
+        coinsEarned={lastBattleResult.coinsEarned}
+      />
     </View>
   );
 }

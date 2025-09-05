@@ -132,7 +132,7 @@ export default function WelcomeScreen() {
           <Pressable
             onPress={() => router.push("/(auth)/login")}
             style={({ pressed }) => ({
-              backgroundColor: pressed ? '#FF4444' : '#90CC56',
+              backgroundColor: pressed ? 'rgba(255, 215, 0, 0.2)' : 'rgba(255, 215, 0, 0.1)',
               paddingVertical: 18,
               paddingHorizontal: 40,
               borderRadius: 25,
@@ -143,7 +143,6 @@ export default function WelcomeScreen() {
               shadowOpacity: 0.5,
               shadowRadius: 15,
               shadowOffset: { width: 0, height: 8 },
-              elevation: 15,
               transform: [{ scale: pressed ? 0.95 : 1 }],
             })}
           >
