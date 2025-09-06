@@ -1,0 +1,944 @@
+{
+    "_type": "export",
+    "__export_format": 4,
+    "__export_date": "2024-01-01T00:00:00.000Z",
+    "__export_source": "insomnia.desktop.app:v2023.5.8",
+    "resources": [
+        {
+            "_id": "req_health_check",
+            "parentId": "fld_health",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/health/check",
+            "name": "Health Check",
+            "description": "Basic health check endpoint",
+            "method": "GET",
+            "body": {},
+            "parameters": [],
+            "headers": [],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_health_detailed",
+            "parentId": "fld_health",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/health/detailed",
+            "name": "Health Check Detailed",
+            "description": "Detailed health check with comprehensive metrics",
+            "method": "GET",
+            "body": {},
+            "parameters": [],
+            "headers": [],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_health_ping",
+            "parentId": "fld_health",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/health/ping",
+            "name": "Health Ping",
+            "description": "Simple ping/pong endpoint",
+            "method": "GET",
+            "body": {},
+            "parameters": [],
+            "headers": [],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_hello",
+            "parentId": "fld_public",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/hello",
+            "name": "Hello World",
+            "description": "Simple hello world endpoint",
+            "method": "GET",
+            "body": {},
+            "parameters": [],
+            "headers": [],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_auth_login",
+            "parentId": "fld_auth",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/auth/login",
+            "name": "Login",
+            "description": "User login endpoint",
+            "method": "POST",
+            "body": {
+                "mimeType": "application/json",
+                "text": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_auth_register",
+            "parentId": "fld_auth",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/auth/register",
+            "name": "Register",
+            "description": "User registration endpoint",
+            "method": "POST",
+            "body": {
+                "mimeType": "application/json",
+                "text": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\",\n  \"status\": \"active\"\n}"
+            },
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_auth_logout",
+            "parentId": "fld_auth",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/auth/logout",
+            "name": "Logout",
+            "description": "User logout endpoint",
+            "method": "POST",
+            "body": {},
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_auth_me",
+            "parentId": "fld_auth",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/auth/me",
+            "name": "Get Profile",
+            "description": "Get authenticated user profile",
+            "method": "GET",
+            "body": {},
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_auth_refresh",
+            "parentId": "fld_auth",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/auth/refresh",
+            "name": "Refresh Token",
+            "description": "Refresh authentication token",
+            "method": "POST",
+            "body": {},
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_users_list",
+            "parentId": "fld_users",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/users",
+            "name": "List Users",
+            "description": "Get all users",
+            "method": "GET",
+            "body": {},
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_users_create",
+            "parentId": "fld_users",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/users",
+            "name": "Create User",
+            "description": "Create a new user",
+            "method": "POST",
+            "body": {
+                "mimeType": "application/json",
+                "text": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane@example.com\",\n  \"password\": \"password123\",\n  \"points\": 100,\n  \"ranking\": 1,\n  \"status\": \"active\"\n}"
+            },
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_users_show",
+            "parentId": "fld_users",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/users/{{ _.user_id }}",
+            "name": "Get User",
+            "description": "Get a specific user by ID",
+            "method": "GET",
+            "body": {},
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_users_update",
+            "parentId": "fld_users",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/users/{{ _.user_id }}",
+            "name": "Update User",
+            "description": "Update a specific user",
+            "method": "PUT",
+            "body": {
+                "mimeType": "application/json",
+                "text": "{\n  \"name\": \"Jane Smith\",\n  \"email\": \"jane.smith@example.com\",\n  \"points\": 150,\n  \"ranking\": 2,\n  \"status\": \"active\"\n}"
+            },
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_users_delete",
+            "parentId": "fld_users",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/users/{{ _.user_id }}",
+            "name": "Delete User",
+            "description": "Delete a specific user",
+            "method": "DELETE",
+            "body": {},
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_benchmark_users",
+            "parentId": "fld_benchmark",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/benchmark/users/{{ _.iterations || 1 }}",
+            "name": "Benchmark Users",
+            "description": "Benchmark user operations",
+            "method": "GET",
+            "body": {},
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_auth_update_push_token",
+            "parentId": "fld_auth",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/auth/update-push-token",
+            "name": "Update Push Token",
+            "description": "Update user's Expo push token for notifications",
+            "method": "POST",
+            "body": {
+                "mimeType": "application/json",
+                "text": "{\n  \"expo_push_token\": \"ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]\"\n}"
+            },
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_characters_list",
+            "parentId": "fld_characters",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/characters",
+            "name": "List Characters",
+            "description": "Get all characters with optional filtering",
+            "method": "GET",
+            "body": {},
+            "parameters": [
+                {
+                    "name": "tier_id",
+                    "value": "1",
+                    "description": "Filter by tier ID"
+                },
+                {
+                    "name": "name",
+                    "value": "warrior",
+                    "description": "Search by character name"
+                },
+                {
+                    "name": "status",
+                    "value": "active",
+                    "description": "Filter by status"
+                },
+                {
+                    "name": "order_by",
+                    "value": "name",
+                    "description": "Sort by field (name, created_at, tier_id)"
+                },
+                {
+                    "name": "order_direction",
+                    "value": "asc",
+                    "description": "Sort direction (asc, desc)"
+                },
+                {
+                    "name": "per_page",
+                    "value": "15",
+                    "description": "Items per page (max 100)"
+                }
+            ],
+            "headers": [
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_characters_show",
+            "parentId": "fld_characters",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/characters/{{ _.character_id }}",
+            "name": "Get Character",
+            "description": "Get a specific character by ID",
+            "method": "GET",
+            "body": {},
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_characters_by_tier",
+            "parentId": "fld_characters",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/characters/tier/{{ _.tier_id }}",
+            "name": "Get Characters by Tier",
+            "description": "Get all characters for a specific tier",
+            "method": "GET",
+            "body": {},
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_location_update",
+            "parentId": "fld_location",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/location/update",
+            "name": "Update Location",
+            "description": "Update user location and check for nearby battles",
+            "method": "POST",
+            "body": {
+                "mimeType": "application/json",
+                "text": "{\n  \"user_id\": \"{{ _.user_id }}\",\n  \"latitude\": -23.5505,\n  \"longitude\": -46.6333\n}"
+            },
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                },
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_location_current",
+            "parentId": "fld_location",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/location/current",
+            "name": "Get Current Location",
+            "description": "Get user's current location",
+            "method": "GET",
+            "body": {},
+            "parameters": [
+                {
+                    "name": "user_id",
+                    "value": "{{ _.user_id }}",
+                    "description": "User ID"
+                }
+            ],
+            "headers": [
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_location_history",
+            "parentId": "fld_location",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/location/history",
+            "name": "Get Location History",
+            "description": "Get user's location history",
+            "method": "GET",
+            "body": {},
+            "parameters": [
+                {
+                    "name": "user_id",
+                    "value": "{{ _.user_id }}",
+                    "description": "User ID"
+                },
+                {
+                    "name": "limit",
+                    "value": "50",
+                    "description": "Number of location records to return (max 100)"
+                }
+            ],
+            "headers": [
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_location_nearby",
+            "parentId": "fld_location",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/location/nearby",
+            "name": "Check Nearby Users",
+            "description": "Check for nearby users and battle opportunities",
+            "method": "GET",
+            "body": {},
+            "parameters": [
+                {
+                    "name": "user_id",
+                    "value": "{{ _.user_id }}",
+                    "description": "User ID"
+                },
+                {
+                    "name": "latitude",
+                    "value": "-23.5505",
+                    "description": "Current latitude"
+                },
+                {
+                    "name": "longitude",
+                    "value": "-46.6333",
+                    "description": "Current longitude"
+                }
+            ],
+            "headers": [
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_location_proximity_status",
+            "parentId": "fld_location",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/location/proximity-status",
+            "name": "Get Proximity Status",
+            "description": "Get user's current proximity status",
+            "method": "GET",
+            "body": {},
+            "parameters": [
+                {
+                    "name": "user_id",
+                    "value": "{{ _.user_id }}",
+                    "description": "User ID"
+                }
+            ],
+            "headers": [
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_location_safe_spots",
+            "parentId": "fld_location",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/location/safe-spots",
+            "name": "Get Safe Spots",
+            "description": "Get all safe spots",
+            "method": "GET",
+            "body": {},
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "req_location_test",
+            "parentId": "fld_location",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "url": "{{ _.base_url }}/location/test",
+            "name": "Test Location Service",
+            "description": "Test endpoint to check if location service is working",
+            "method": "GET",
+            "body": {},
+            "parameters": [],
+            "headers": [
+                {
+                    "name": "Accept",
+                    "value": "application/json"
+                }
+            ],
+            "authentication": {},
+            "metaSortKey": -1704067200000,
+            "isPrivate": false,
+            "settingStoreCookies": true,
+            "settingSendCookies": true,
+            "settingDisableRenderRequestBody": false,
+            "settingEncodeUrl": true,
+            "settingRebuildPath": true,
+            "settingFollowRedirects": "global",
+            "_type": "request"
+        },
+        {
+            "_id": "fld_health",
+            "parentId": "wrk_caos_fighters_api",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "name": "Health Check",
+            "description": "Health check endpoints",
+            "environment": {},
+            "environmentPropertyOrder": null,
+            "metaSortKey": -1704067200000,
+            "_type": "request_group"
+        },
+        {
+            "_id": "fld_public",
+            "parentId": "wrk_caos_fighters_api",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "name": "Public",
+            "description": "Public endpoints (no authentication required)",
+            "environment": {},
+            "environmentPropertyOrder": null,
+            "metaSortKey": -1704067200000,
+            "_type": "request_group"
+        },
+        {
+            "_id": "fld_auth",
+            "parentId": "wrk_caos_fighters_api",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "name": "Authentication",
+            "description": "Authentication endpoints (no authentication required)",
+            "environment": {},
+            "environmentPropertyOrder": null,
+            "metaSortKey": -1704067200000,
+            "_type": "request_group"
+        },
+        {
+            "_id": "fld_users",
+            "parentId": "wrk_caos_fighters_api",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "name": "Users",
+            "description": "User management endpoints",
+            "environment": {},
+            "environmentPropertyOrder": null,
+            "metaSortKey": -1704067200000,
+            "_type": "request_group"
+        },
+        {
+            "_id": "fld_benchmark",
+            "parentId": "wrk_caos_fighters_api",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "name": "Benchmark",
+            "description": "Benchmark endpoints",
+            "environment": {},
+            "environmentPropertyOrder": null,
+            "metaSortKey": -1704067200000,
+            "_type": "request_group"
+        },
+        {
+            "_id": "fld_characters",
+            "parentId": "wrk_caos_fighters_api",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "name": "Characters",
+            "description": "Character management endpoints",
+            "environment": {},
+            "environmentPropertyOrder": null,
+            "metaSortKey": -1704067200000,
+            "_type": "request_group"
+        },
+        {
+            "_id": "fld_location",
+            "parentId": "wrk_caos_fighters_api",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "name": "Location",
+            "description": "Location and proximity-based battle endpoints",
+            "environment": {},
+            "environmentPropertyOrder": null,
+            "metaSortKey": -1704067200000,
+            "_type": "request_group"
+        },
+        {
+            "_id": "wrk_caos_fighters_api",
+            "parentId": null,
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "name": "Caos Fighters API",
+            "description": "Complete API collection for Caos Fighters backend",
+            "scope": "collection",
+            "_type": "workspace"
+        },
+        {
+            "_id": "env_base",
+            "parentId": "wrk_caos_fighters_api",
+            "modified": 1704067200000,
+            "created": 1704067200000,
+            "name": "Base Environment",
+            "data": {
+                "base_url": "http://localhost:8000/backend",
+                "auth_token": "",
+                "user_id": "1",
+                "iterations": "1",
+                "character_id": "1",
+                "tier_id": "1"
+            },
+            "dataPropertyOrder": {
+                "&": ["base_url", "auth_token", "user_id", "iterations", "character_id", "tier_id"]
+            },
+            "color": null,
+            "isPrivate": false,
+            "metaSortKey": 1704067200000,
+            "_type": "environment"
+        }
+    ]
+}
