@@ -1,0 +1,68 @@
+---
+globs: backend/domain/**/*.ts,src/**/*.ts,src/**/*.tsx
+description: Regras específicas para o domínio do jogo de batalha por turnos
+---
+
+# Domínio do Jogo - Regras de Batalha por Turnos
+
+## Mecânicas Fundamentais
+
+### Sistema de Ataques
+- Cada personagem deve ter EXATAMENTE 4 ataques
+- Ataques devem ser balanceados: diferentes tipos, danos e efeitos
+- Implemente cooldowns e limitações estratégicas
+
+```typescript
+interface Character {
+  attacks: [Attack, Attack, Attack, Attack]; // Sempre 4 ataques
+}
+
+enum AttackType {
+  FISICO = 'FISICO',
+  MAGICO = 'MAGICO', 
+  ESPECIAL = 'ESPECIAL',
+  DEFENSIVO = 'DEFENSIVO'
+}
+```
+
+### Sistema de Turnos
+- Turnos baseados em velocidade/agilidade dos personagens
+- Implemente validação de turno válido
+- Mantenha histórico de ações para replay
+
+### Geração de Personagens Aleatórios
+- Use seed determinística para reproducibilidade em testes
+- Implemente balanceamento para evitar personagens muito fortes/fracos
+- Garanta diversidade nos ataques gerados
+
+## Regras de Negócio
+
+### Validações Críticas
+```typescript
+// Sempre valide antes de executar ação
+const isValidTurn = (battle: Battle, playerId: string): boolean => {
+  return battle.currentPlayerTurn === playerId && battle.status === 'IN_PROGRESS';
+};
+```
+
+### Estados de Batalha
+- Use enums para estados bem definidos
+- Implemente máquina de estados para transições válidas
+- Previna estados inválidos através de validação
+
+### Performance Mobile
+- Otimize para dispositivos móveis com recursos limitados
+- Use lazy loading para assets pesados
+- Implemente pooling de objetos para reduzir garbage collection
+
+## Testes
+
+### Cobertura Obrigatória
+- Toda lógica de batalha deve ter testes unitários
+- Teste cenários edge cases (personagem com 1 HP, ataques críticos)
+- Use mocks para dependências externas
+
+### Dados de Teste
+- Mantenha dados de teste consistentes e realistas
+- Use factory pattern para criar objetos de teste
+- Implemente helpers para cenários de batalha comuns
