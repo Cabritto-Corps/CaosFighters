@@ -160,7 +160,7 @@ export default function ConfigModal({ visible, onClose }: ConfigModalProps) {
             lineHeight: 16,
           }}>
             🎮 Caos Fighters v1.0{'\n'}
-            Desenvolvido com ❤️ e ⚡
+            Desenvolvido pela Cabritto Corps.
           </Text>
         </View>
       </View>

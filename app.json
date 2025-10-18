@@ -41,7 +41,11 @@
     },
     "extra": {
       "SUPABASE_URL": "process.env.SUPABASE_URL",
-      "SUPABASE_ANON_KEY": "process.env.SUPABASE_ANON_KEY"
+      "SUPABASE_ANON_KEY": "process.env.SUPABASE_ANON_KEY",
+      "router": {},
+      "eas": {
+        "projectId": "cbac2687-3963-46be-a056-e51daa716f74"
+      }
     }
   }
 }

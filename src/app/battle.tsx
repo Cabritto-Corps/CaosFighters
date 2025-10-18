@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -13,6 +14,18 @@ import ChaosButton from "../components/ui/ChaosButton";
 import ChaoticBackground from "../components/ui/ChaoticBackground";
 
 const { width, height } = Dimensions.get("window");
+
+// Mapeamento de personagens disponíveis
+const CHARACTERS = {
+  pikachu: {
+    name: "Pikachu",
+    image: require("../../assets/images/pikachu.png"),
+  },
+  vindiesel: {
+    name: "Vin Diesel",
+    image: require("../../assets/images/vindiesel.png"),
+  },
+};
 
 // Ataques disponíveis
 const ATTACKS = [
@@ -29,24 +42,27 @@ export default function BattleScreen() {
   // Estados da batalha
   const [playerHP, setPlayerHP] = useState(100);
   const [enemyHP, setEnemyHP] = useState(100);
-  const [playerMP, setPlayerMP] = useState(100);
   const [turn, setTurn] = useState<'player' | 'enemy'>('player');
   const [battleLog, setBattleLog] = useState<string[]>([]);
   const [battleEnded, setBattleEnded] = useState(false);
   const [winner, setWinner] = useState<'player' | 'enemy' | null>(null);
+  const [currentDamage, setCurrentDamage] = useState(0);
 
   // Dados do inimigo e jogador
+  const enemyCharacter = params.enemyCharacter as keyof typeof CHARACTERS || "vindiesel";
+  const playerCharacter = params.playerCharacter as keyof typeof CHARACTERS || "pikachu";
+  
   const enemy = {
-    name: params.enemyName as string || "Inimigo Misterioso",
-    icon: params.enemyIcon as string || "👾",
+    name: params.enemyName as string || CHARACTERS[enemyCharacter].name,
+    image: CHARACTERS[enemyCharacter].image,
     maxHP: 100,
     power: params.enemyPower as string || "800",
     level: params.enemyLevel as string || "15",
   };
 
   const player = {
-    name: "Guerreiro Supremo", // Pode vir dos parâmetros ou localStorage futuramente
-    icon: "⚔️",
+    name: params.playerName as string || CHARACTERS[playerCharacter].name,
+    image: CHARACTERS[playerCharacter].image,
     maxHP: 100,
   };
 
@@ -55,6 +71,17 @@ export default function BattleScreen() {
   const shakeAnimPlayer = useRef(new Animated.Value(0)).current;
   const shakeAnimEnemy = useRef(new Animated.Value(0)).current;
   const battleAnimScale = useRef(new Animated.Value(1)).current;
+  
+  // Novas animações de ataque
+  const attackEffectOpacity = useRef(new Animated.Value(0)).current;
+  const attackEffectScale = useRef(new Animated.Value(0.5)).current;
+  const attackEffectRotation = useRef(new Animated.Value(0)).current;
+  const damageTextOpacity = useRef(new Animated.Value(0)).current;
+  const damageTextTranslateY = useRef(new Animated.Value(0)).current;
+  const damageTextScale = useRef(new Animated.Value(0.5)).current;
+  const screenFlashOpacity = useRef(new Animated.Value(0)).current;
+  const characterAttackScale = useRef(new Animated.Value(1)).current;
+  const characterAttackRotation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -88,59 +115,104 @@ export default function BattleScreen() {
     }
   }, [turn, battleEnded]);
 
-  const animateHit = (target: 'player' | 'enemy') => {
-    const anim = target === 'player' ? shakeAnimPlayer : shakeAnimEnemy;
+  const animateAttack = (attacker: 'player' | 'enemy', target: 'player' | 'enemy', damage: number) => {
+    const targetAnim = target === 'player' ? shakeAnimPlayer : shakeAnimEnemy;
     
-    Animated.sequence([
-      Animated.timing(anim, {
-        toValue: 10,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(anim, {
-        toValue: -10,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.timing(anim, {
-        toValue: 0,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    // Definir o dano atual para exibição
+    setCurrentDamage(damage);
+    
+    // Reset das animações
+    attackEffectOpacity.setValue(0);
+    attackEffectScale.setValue(0.5);
+    attackEffectRotation.setValue(0);
+    damageTextOpacity.setValue(0);
+    damageTextTranslateY.setValue(0);
+    damageTextScale.setValue(0.5);
+    screenFlashOpacity.setValue(0);
+    characterAttackScale.setValue(1);
+    characterAttackRotation.setValue(0);
 
-    // Animação de escala da batalha
-    Animated.sequence([
-      Animated.timing(battleAnimScale, {
-        toValue: 1.05,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(battleAnimScale, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
+    // Animação simplificada para evitar conflitos
+    Animated.parallel([
+      // Shake do alvo
+      Animated.sequence([
+        Animated.timing(targetAnim, {
+          toValue: 10,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(targetAnim, {
+          toValue: -10,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(targetAnim, {
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      // Efeito visual simples
+      Animated.sequence([
+        Animated.timing(attackEffectOpacity, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(attackEffectOpacity, {
+          toValue: 0,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]),
+      
+      // Texto de dano
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(damageTextOpacity, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+          Animated.timing(damageTextScale, {
+            toValue: 1.2,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.parallel([
+          Animated.timing(damageTextTranslateY, {
+            toValue: -20,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+          Animated.timing(damageTextOpacity, {
+            toValue: 0,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]),
     ]).start();
   };
 
   const playerAttack = (attack: typeof ATTACKS[0]) => {
-    if (playerMP < attack.cost || turn !== 'player' || battleEnded) return;
+    if (turn !== 'player' || battleEnded) return;
 
     const damage = Math.floor(Math.random() * (attack.damage[1] - attack.damage[0] + 1)) + attack.damage[0];
-    
-    setPlayerMP(prev => prev - attack.cost);
     
     if (damage > 0) {
       // Ataque
       setEnemyHP(prev => Math.max(0, prev - damage));
       setBattleLog(prev => [...prev, `Você usou ${attack.name} e causou ${damage} de dano!`]);
-      animateHit('enemy');
+      animateAttack('player', 'enemy', damage);
     } else {
       // Cura
       const healing = Math.abs(damage);
       setPlayerHP(prev => Math.min(100, prev + healing));
       setBattleLog(prev => [...prev, `Você usou ${attack.name} e curou ${healing} HP!`]);
+      animateAttack('player', 'player', healing);
     }
     
     setTurn('enemy');
@@ -153,7 +225,7 @@ export default function BattleScreen() {
     
     setPlayerHP(prev => Math.max(0, prev - damage));
     setBattleLog(prev => [...prev, `${enemy.name} usou ${randomAttack.name} e causou ${damage} de dano!`]);
-    animateHit('player');
+    animateAttack('enemy', 'player', damage);
     
     setTurn('player');
   };
@@ -179,6 +251,33 @@ export default function BattleScreen() {
         particleColors={['#FF6B6B', '#FFD700', '#FF4444', '#FFA500']}
         animated={true}
       />
+
+      {/* Flash da tela durante ataques */}
+      <Animated.View 
+        style={[
+          styles.screenFlash, 
+          { opacity: screenFlashOpacity }
+        ]} 
+      />
+
+      {/* Efeito visual de ataque */}
+      <Animated.View 
+        style={[
+          styles.attackEffect,
+          {
+            opacity: attackEffectOpacity,
+            transform: [
+              { scale: attackEffectScale },
+              { rotate: attackEffectRotation.interpolate({
+                inputRange: [0, 360],
+                outputRange: ['0deg', '360deg'],
+              })}
+            ]
+          }
+        ]}
+      >
+        <Text style={styles.attackEffectText}>⚡</Text>
+      </Animated.View>
 
       <Animated.View 
         style={[styles.battleContainer, { opacity: fadeAnim, transform: [{ scale: battleAnimScale }] }]}
@@ -216,13 +315,6 @@ export default function BattleScreen() {
                 {playerHP}/100
               </Text>
             </View>
-            {/* Barra de MP do Jogador */}
-            <View style={styles.mpContainer}>
-              <View style={styles.mpBarBg}>
-                <View style={[styles.mpBar, { width: `${playerMP}%` }]} />
-              </View>
-              <Text style={styles.mpText}>{playerMP}/100 MP</Text>
-            </View>
           </View>
         </View>
 
@@ -232,11 +324,22 @@ export default function BattleScreen() {
           <Animated.View style={[
             styles.characterContainer, 
             styles.enemyContainer,
-            { transform: [{ translateX: shakeAnimEnemy }] }
+            { 
+              transform: [
+                { translateX: shakeAnimEnemy },
+                { scale: characterAttackScale },
+                { rotate: characterAttackRotation.interpolate({
+                  inputRange: [-15, 15],
+                  outputRange: ['-15deg', '15deg'],
+                })}
+              ]
+            }
           ]}>
-            <Text style={[styles.characterSprite, { opacity: enemyHP > 0 ? 1 : 0.3 }]}>
-              {enemy.icon}
-            </Text>
+            <Image 
+              source={enemy.image}
+              style={[styles.characterSprite, { opacity: enemyHP > 0 ? 1 : 0.3 }]}
+              resizeMode="contain"
+            />
           </Animated.View>
 
           {/* Indicador de Turno */}
@@ -255,13 +358,40 @@ export default function BattleScreen() {
           <Animated.View style={[
             styles.characterContainer, 
             styles.playerContainer,
-            { transform: [{ translateX: shakeAnimPlayer }] }
+            { 
+              transform: [
+                { translateX: shakeAnimPlayer },
+                { scale: characterAttackScale },
+                { rotate: characterAttackRotation.interpolate({
+                  inputRange: [-15, 15],
+                  outputRange: ['-15deg', '15deg'],
+                })}
+              ]
+            }
           ]}>
-            <Text style={[styles.characterSprite, { opacity: playerHP > 0 ? 1 : 0.3 }]}>
-              {player.icon}
-            </Text>
+            <Image 
+              source={player.image}
+              style={[styles.characterSprite, { opacity: playerHP > 0 ? 1 : 0.3 }]}
+              resizeMode="contain"
+            />
           </Animated.View>
         </View>
+
+        {/* Texto de dano flutuante */}
+        <Animated.View 
+          style={[
+            styles.damageText,
+            {
+              opacity: damageTextOpacity,
+              transform: [
+                { translateY: damageTextTranslateY },
+                { scale: damageTextScale }
+              ]
+            }
+          ]}
+        >
+          <Text style={styles.damageTextContent}>-{currentDamage}</Text>
+        </Animated.View>
 
         {/* Ataques - Grid 2x2 na parte inferior */}
         <View style={styles.attacksContainer}>
@@ -273,27 +403,17 @@ export default function BattleScreen() {
                     <Pressable
                       key={attack.id}
                       onPress={() => playerAttack(attack)}
-                      disabled={playerMP < attack.cost}
                       style={({ pressed }) => [
                         styles.attackButton,
                         {
-                          backgroundColor: playerMP >= attack.cost 
-                            ? 'rgba(255, 215, 0, 0.2)' 
-                            : 'rgba(100, 100, 100, 0.2)',
-                          borderColor: playerMP >= attack.cost 
-                            ? 'rgba(255, 215, 0, 0.5)' 
-                            : 'rgba(100, 100, 100, 0.5)',
+                          backgroundColor: 'rgba(255, 215, 0, 0.2)',
+                          borderColor: 'rgba(255, 215, 0, 0.5)',
                           transform: [{ scale: pressed ? 0.95 : 1 }],
                         }
                       ]}
                     >
                       <Text style={styles.attackName}>
                         {attack.name}
-                      </Text>
-                      <Text style={[styles.attackCost, {
-                        color: playerMP >= attack.cost ? '#94a3b8' : '#666'
-                      }]}>
-                        {attack.cost} MP
                       </Text>
                     </Pressable>
                   ))}
@@ -404,28 +524,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 4,
   },
-  mpContainer: {
-    width: '100%',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  mpBarBg: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    height: 6,
-    width: '80%',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  mpBar: {
-    height: '100%',
-    backgroundColor: '#0099FF',
-    borderRadius: 3,
-  },
-  mpText: {
-    color: '#0099FF',
-    fontSize: 9,
-    marginTop: 2,
-  },
 
   // Arena Central
   arena: {
@@ -447,7 +545,8 @@ const styles = StyleSheet.create({
     right: width * 0,
   },
   characterSprite: {
-    fontSize: 80,
+    width: 80,
+    height: 80,
   },
   turnIndicator: {
     backgroundColor: 'rgba(17, 24, 39, 0.9)',
@@ -456,6 +555,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
+    position: 'absolute',
+    top: 250,
+    left: '49%',
+    transform: [{ translateX: -50 }],
   },
   turnText: {
     fontSize: 12,
@@ -490,10 +593,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
-    marginBottom: 4,
-  },
-  attackCost: {
-    fontSize: 10,
   },
   waitingContainer: {
     backgroundColor: 'rgba(17, 24, 39, 0.9)',
@@ -543,5 +642,53 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#FFD700',
     fontWeight: '600',
+  },
+
+  // Novos estilos para animações
+  screenFlash: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#FFFFFF',
+    zIndex: 1000,
+    pointerEvents: 'none', // Permite toques passarem através do elemento
+  },
+  attackEffect: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: 100,
+    height: 100,
+    marginTop: -50,
+    marginLeft: -50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 999,
+    pointerEvents: 'none', // Permite toques passarem através do elemento
+  },
+  attackEffectText: {
+    fontSize: 60,
+    color: '#FFD700',
+    textShadowColor: '#FF4444',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 10,
+  },
+  damageText: {
+    position: 'absolute',
+    top: '45%',
+    left: '50%',
+    marginLeft: -30,
+    zIndex: 998,
+    pointerEvents: 'none', // Permite toques passarem através do elemento
+  },
+  damageTextContent: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#FF4444',
+    textShadowColor: '#000000',
+    textShadowOffset: { width: 2, height: 2 },
+    textShadowRadius: 5,
   },
 });
