@@ -1,0 +1,93 @@
+---
+alwaysApply: true
+---
+# Fluxo de Desenvolvimento - Debugging e Qualidade
+
+## Debug e Logging
+
+### Logging Estratégico
+- Use console.log apenas para desenvolvimento local
+- Implemente sistema de logs estruturados para produção
+- Diferentes níveis: ERROR, WARN, INFO, DEBUG
+
+```typescript
+// BOM - logging estruturado
+logger.info('Battle started', { 
+  battleId: battle.id, 
+  players: battle.players.map(p => p.id),
+  timestamp: new Date().toISOString()
+});
+
+// EVITE - logs não estruturados
+console.log('Battle started with players', players);
+```
+
+### Debugging Mobile
+- Use Flipper para debugging React Native
+- Implemente remote debugging para dispositivos físicos
+- Log network requests para debugging de API
+
+### Error Boundaries
+- Implemente Error Boundary para capturar erros de UI
+- Fallback gracioso para erros de batalha
+- Reporte erros para monitoramento (quando em produção)
+
+## Controle de Qualidade
+
+### Code Review Checklist
+- [ ] Sem emojis em código ou comentários
+- [ ] Validações de entrada implementadas
+- [ ] Testes unitários cobrindo casos principais
+- [ ] Performance adequada para mobile
+- [ ] Error handling implementado
+- [ ] Logging adequado para debugging
+
+### Git Workflow
+- Commits pequenos e focados
+- Mensagens de commit descritivas em português
+- Branch por feature/bugfix
+- Review obrigatório antes de merge
+
+```bash
+# BOM
+git commit -m "feat: implementa sistema de dano crítico"
+git commit -m "fix: corrige cálculo de velocidade em turnos"
+
+# EVITE  
+git commit -m "mudanças"
+git commit -m "fix stuff"
+```
+
+## Ambiente de Desenvolvimento
+
+### Setup Local
+- Use [nodemon-backend.json](mdc:nodemon-backend.json) para hot reload
+- Configure ambiente com [.env](mdc:backend/env.example)
+- Mantenha dependencies atualizadas regularmente
+
+### Performance Monitoring
+- Profile código crítico (cálculos de batalha)
+- Monitor memory leaks em sessões longas
+- Use React DevTools para otimização de componentes
+
+### Code Style
+- Use ESLint configuration ([eslint.config.js](mdc:eslint.config.js))
+- Configure Prettier para formatação consistente
+- Fix warnings antes de commit
+
+## Deployment e CI/CD
+
+### Build Process
+- Valide todos os testes antes de build
+- Otimize bundle para produção
+- Use environment variables para configurações
+
+### Mobile Deployment
+- Teste em dispositivos físicos antes de release
+- Use Expo EAS Build para builds consistentes
+- Implemente crash reporting (Sentry/Bugsnag)
+
+### Rollback Strategy
+- Mantenha versões estáveis para rollback rápido
+- Database migrations com rollback
+- Feature flags para funcionalidades experimentais
