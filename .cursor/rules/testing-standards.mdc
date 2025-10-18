@@ -1,0 +1,146 @@
+---
+alwaysApply: true
+---
+
+# Padrões de Testes - Jogo de Batalha por Turnos
+
+## Estrutura de Testes
+
+### Organização
+- Testes unitários em [backend/tests/](mdc:backend/tests/)
+- Testes de componentes React Native em [tests/](mdc:tests/)
+- Setup principal em [tests/setup-tests.ts](mdc:tests/setup-tests.ts)
+- Configuração Jest: [jest.config.js](mdc:jest.config.js) e [jest-backend.config.js](mdc:jest-backend.config.js)
+
+### Nomenclatura
+- Arquivos: `ModuleName.test.ts`
+- Describe: Nome da classe/função sendo testada
+- It: Deve descrever comportamento específico em português
+
+```typescript
+describe('BattleService', () => {
+  describe('executeTurn', () => {
+    it('deve aplicar dano quando ataque é válido', () => {
+      // teste aqui
+    });
+    
+    it('deve rejeitar turno quando não é vez do jogador', () => {
+      // teste aqui
+    });
+  });
+});
+```
+
+## Testes de Domínio
+
+### Entidades de Jogo
+- Teste todas as regras de negócio das entidades
+- Valide invariantes (personagem sempre tem 4 ataques)
+- Teste edge cases (HP zero, ataques inválidos)
+
+```typescript
+describe('Character', () => {
+  it('deve sempre ter exatamente 4 ataques', () => {
+    const character = new Character(mockCharacterData);
+    expect(character.attacks).toHaveLength(4);
+  });
+
+  it('deve calcular dano corretamente baseado em stats', () => {
+    const attacker = createTestCharacter({ attack: 50 });
+    const defender = createTestCharacter({ defense: 20 });
+    const damage = calculateDamage(attacker, defender, testAttack);
+    expect(damage).toBeGreaterThan(0);
+  });
+});
+```
+
+### Sistema de Batalha
+- Teste fluxo completo de batalha
+- Valide cálculos de dano e efeitos especiais
+- Teste condições de vitória/derrota
+- Simule diferentes cenários de combate
+
+## Testes React Native/Expo
+
+### Testing Library Setup
+- Use @testing-library/react-native para componentes
+- Configure mocks para APIs Expo (Audio, Haptics)
+- Use react-native-testing-library para navegação
+
+```typescript
+import { render, fireEvent } from '@testing-library/react-native';
+
+describe('AttackButton', () => {
+  it('deve executar ataque quando pressionado', () => {
+    const onAttack = jest.fn();
+    const { getByText } = render(
+      <AttackButton attack={testAttack} onPress={onAttack} />
+    );
+    
+    fireEvent.press(getByText('Ataque Especial'));
+    expect(onAttack).toHaveBeenCalledWith(testAttack);
+  });
+});
+```
+
+### Mocks para Expo
+- Mock expo-av para testes de áudio
+- Mock expo-haptics para feedback tátil
+- Mock expo-router para navegação
+
+```typescript
+// setup-tests.ts
+jest.mock('expo-av', () => ({
+  Audio: {
+    Sound: {
+      createAsync: jest.fn(() => Promise.resolve({ playAsync: jest.fn() })),
+    },
+  },
+}));
+
+jest.mock('expo-haptics', () => ({
+  impactAsync: jest.fn(() => Promise.resolve()),
+}));
+```
+
+### Dados de Teste
+
+#### Factory Functions
+```typescript
+const createTestCharacter = (overrides?: Partial<Character>): Character => {
+  return {
+    id: 'test-char-1',
+    name: 'Personagem Teste',
+    health: 100,
+    maxHealth: 100,
+    attacks: createFourTestAttacks(),
+    stats: { attack: 50, defense: 30, speed: 40 },
+    ...overrides,
+  };
+};
+
+const createTestBattle = (): Battle => {
+  return new Battle({
+    id: 'test-battle-1',
+    players: [createTestCharacter(), createTestCharacter()],
+    currentTurn: 0,
+  });
+};
+```
+
+## Performance e Qualidade
+
+### Cobertura de Testes
+- Meta mínima: 90% para lógica de batalha
+- 100% para cálculos críticos (dano, vitória, personagem aleatório)
+- Use coverage reports para identificar gaps
+
+### Velocidade dos Testes
+- Use mocks para operações custosas
+- Paralelização quando possível
+- Setup/teardown eficientes
+
+### Integração Contínua
+- Todos os testes devem passar antes de merge
+- Use cache de node_modules no CI
+- Configure timeouts apropriados para testes de integração

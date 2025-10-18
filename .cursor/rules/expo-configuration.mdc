@@ -1,0 +1,165 @@
+---
+alwaysApply: true
+---
+
+# Expo Configuration - Setup e Configuração
+
+## Configuração Principal ([app.json](mdc:app.json))
+
+### App Manifest
+```json
+{
+  "expo": {
+    "name": "Chaos Fighters",
+    "slug": "chaos-fighters-game",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/images/LogoInicial.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "icon": "./assets/images/LogoCaosFighters.png"
+  }
+}
+```
+
+### Permissions Necessárias
+```json
+{
+  "permissions": [
+    "AUDIO_RECORDING",
+    "VIBRATE",
+    "SYSTEM_ALERT_WINDOW"
+  ],
+  "android": {
+    "permissions": [
+      "android.permission.VIBRATE"
+    ]
+  }
+}
+```
+
+## Package Management ([package.json](mdc:package.json))
+
+### Dependencies Expo Essenciais
+- expo-router para navegação
+- expo-av para áudio
+- expo-haptics para feedback tátil
+- expo-asset para preload de recursos
+- expo-splash-screen para tela inicial
+
+### Scripts Organizados
+```json
+{
+  "scripts": {
+    "start": "expo start",
+    "start:clear": "expo start --clear",
+    "dev:backend": "nodemon --config nodemon-backend.json",
+    "build:android": "eas build --platform android",
+    "build:ios": "eas build --platform ios"
+  }
+}
+```
+
+## Workspace Configuration ([pnpm-workspace.yaml](mdc:pnpm-workspace.yaml))
+
+### Monorepo Setup
+- Frontend (React Native/Expo) na raiz
+- Backend como workspace separado
+- Shared types e utilitários
+
+### Dependency Management
+- Use pnpm para performance e cache
+- Lock file versionado ([pnpm-lock.yaml](mdc:pnpm-lock.yaml))
+- Consistent dependencies entre workspaces
+
+## Environment Variables
+
+### Development ([backend/env.example](mdc:backend/env.example))
+```env
+# Database
+SUPABASE_URL=your_supabase_url
+SUPABASE_ANON_KEY=your_anon_key
+
+# Game Configuration  
+MAX_BATTLE_DURATION=300
+MATCHMAKING_TIMEOUT=30
+CHARACTER_POOL_SIZE=50
+
+# Development
+NODE_ENV=development
+LOG_LEVEL=debug
+```
+
+### Production Considerations
+- Use Expo Secrets para production
+- Never commit .env files
+- Validate all required vars on startup
+
+## Build Configuration
+
+### Metro Bundler ([metro.config.js](mdc:metro.config.js))
+```javascript
+const { getDefaultConfig } = require('expo/metro-config');
+
+const config = getDefaultConfig(__dirname);
+
+// Otimização para assets do jogo
+config.resolver.assetExts.push('wav', 'mp3');
+
+// Exclude desnecessário  
+config.resolver.blockList = [
+  /backend\/.*/, // Não bundle backend no app
+];
+
+module.exports = config;
+```
+
+### TypeScript ([tsconfig.json](mdc:tsconfig.json))
+- Strict mode habilitado
+- Path mapping para imports limpos
+- Include apenas src/ para frontend
+
+### Babel ([babel.config.js](mdc:babel.config.js))
+- Preset expo configurado
+- Plugins para performance (hermes)
+- Transform inline requires para assets
+
+## Asset Management
+
+### Static Assets
+- [assets/fonts/](mdc:assets/fonts/) para tipografia customizada
+- [assets/images/](mdc:assets/images/) otimizado para diferentes dpi
+- [assets/sounds/](mdc:assets/sounds/) comprimido para mobile
+
+### Dynamic Loading
+```typescript
+import { Asset } from 'expo-asset';
+
+const loadCharacterAssets = async (characterIds: string[]) => {
+  const assets = characterIds.map(id => 
+    require(`../assets/images/${id}.png`)
+  );
+  
+  return Asset.loadAsync(assets);
+};
+```
+
+## Platform-Specific Configurations
+
+### iOS Specific
+- Configure Info.plist para permissions
+- App Store guidelines compliance
+- Background app refresh para real-time
+
+### Android Specific  
+- Configure proguard rules para minificação
+- Gradle optimization para build speed
+- Target API level apropriado
+
+### Universal Configuration
+- Responsive design para diferentes screen sizes
+- Handle device orientation changes
+- Battery optimization considerations
