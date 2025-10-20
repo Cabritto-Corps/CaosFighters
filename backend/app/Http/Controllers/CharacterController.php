@@ -6,6 +6,7 @@ use App\Models\Character;
 use App\Services\CharacterService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class CharacterController extends Controller
 {
@@ -133,25 +134,34 @@ class CharacterController extends Controller
     }
 
     /**
-     * Get current character for user (auth-aware).
+     * Get current character (with optional user_id).
      */
     public function getCurrentCharacter(Request $request): JsonResponse
     {
         try {
-            // Check if user is authenticated
-            $user = $request->user();
+            $userId = $request->get('user_id');
 
-            if ($user) {
-                // User is authenticated, use proper character assignment with 12-hour limit
-                $result = $this->characterService->getUserCurrentCharacter($user->id);
+            Log::info('Character getCurrentCharacter called', [
+                'user_id' => $userId ? 'provided' : 'not provided'
+            ]);
+
+            if ($userId) {
+                // Get user's assigned character from character_user table
+                $result = $this->characterService->getUserCurrentCharacter($userId);
             } else {
-                // User is not authenticated, return random character without assignment
+                // Return random character without authentication
+                Log::info('Character getCurrentCharacter - returning random character');
                 $result = $this->characterService->getRandomCharacter();
             }
 
             $httpStatus = $result['success'] ? 200 : 400;
             return response()->json($result, $httpStatus);
         } catch (\Exception $e) {
+            Log::error('Character getCurrentCharacter error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to get character',
@@ -161,25 +171,35 @@ class CharacterController extends Controller
     }
 
     /**
-     * Regenerate character for user (auth-aware with 12-hour validation).
+     * Regenerate character (with optional user_id).
      */
     public function regenerateCharacter(Request $request): JsonResponse
     {
         try {
-            // Check if user is authenticated
-            $user = $request->user();
+            // Try to get user_id from both query and body
+            $userId = $request->get('user_id') ?? $request->input('user_id');
 
-            if ($user) {
-                // User is authenticated, validate 12-hour limit before regenerating
-                $result = $this->characterService->regenerateCharacterForUser($user->id);
+            Log::info('Character regenerateCharacter called', [
+                'user_id' => $userId ? 'provided' : 'not provided'
+            ]);
+
+            if ($userId) {
+                // Regenerate character for specific user
+                $result = $this->characterService->regenerateCharacterForUser($userId);
             } else {
-                // User is not authenticated, return random character without assignment
+                // Return random character without authentication
+                Log::info('Character regenerateCharacter - returning random character');
                 $result = $this->characterService->getRandomCharacter();
             }
 
             $httpStatus = $result['success'] ? 200 : 400;
             return response()->json($result, $httpStatus);
         } catch (\Exception $e) {
+            Log::error('Character regenerateCharacter error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to regenerate character',

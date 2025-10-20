@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Character;
 use App\Models\CharacterUser;
 use App\Models\CharacterMove;
+use App\Models\Move;
 use Illuminate\Support\Facades\Log;
 
 class CharacterService
@@ -32,15 +33,29 @@ class CharacterService
                 ];
             }
 
-            // Get character moves for the moves data
-            $characterMovesData = $this->getCharacterMovesData($character->id);
+            // Get 4 random moves from the moves table
+            $characterMovesData = $this->getRandomMoves();
 
             // Create character assignment
+            Log::info('Creating character_user assignment', [
+                'user_id' => $userId,
+                'character_id' => $character->id,
+                'character_name' => $character->name
+            ]);
+
             $characterUser = CharacterUser::create([
                 'user_id' => $userId,
                 'character_id' => $character->id,
                 'moves' => $characterMovesData,
+                'assigned_date' => now()->toDateString(),
                 'created_at' => now(),
+            ]);
+
+            Log::info('Character_user assignment created successfully', [
+                'character_user_id' => $characterUser->id,
+                'user_id' => $characterUser->user_id,
+                'character_id' => $characterUser->character_id,
+                'created_at' => $characterUser->created_at
             ]);
 
             return [
@@ -82,20 +97,34 @@ class CharacterService
     public function getUserCurrentCharacter(string $userId): array
     {
         try {
+            Log::info('getUserCurrentCharacter called', ['user_id' => $userId]);
+
             // Get the most recent character assignment
             $characterUser = CharacterUser::with(['character.tier'])
                 ->where('user_id', $userId)
                 ->latest('created_at')
                 ->first();
 
+            Log::info('Character user lookup result', [
+                'user_id' => $userId,
+                'character_user_found' => $characterUser ? true : false,
+                'character_user_id' => $characterUser ? $characterUser->id : null,
+                'is_expired' => $characterUser ? $characterUser->isExpired() : null
+            ]);
+
             // Check if user has no character or current character is expired
             if (!$characterUser || $characterUser->isExpired()) {
+                Log::info('No character or expired, generating new assignment', [
+                    'user_id' => $userId,
+                    'has_character' => $characterUser ? true : false,
+                    'is_expired' => $characterUser ? $characterUser->isExpired() : null
+                ]);
                 // Generate new character assignment
                 return $this->assignRandomCharacterToUser($userId);
             }
 
-            // Return current valid character
-            $characterMovesData = $this->getCharacterMovesData($characterUser->character_id);
+            // Return current valid character using saved moves from character_user
+            $characterMovesData = $characterUser->moves;
 
             return [
                 'success' => true,
@@ -146,8 +175,8 @@ class CharacterService
                 return $this->assignRandomCharacterToUser($userId);
             }
 
-            // Character is still valid
-            $characterMovesData = $this->getCharacterMovesData($characterUser->character_id);
+            // Character is still valid, use saved moves from character_user
+            $characterMovesData = $characterUser->moves;
 
             return [
                 'success' => true,
@@ -198,7 +227,7 @@ class CharacterService
             if ($characterUser && !$characterUser->isExpired()) {
                 // Character is still valid, cannot regenerate yet
                 $timeRemaining = $characterUser->expires_at->diffInHours(now());
-                $characterMovesData = $this->getCharacterMovesData($characterUser->character_id);
+                $characterMovesData = $characterUser->moves;
 
                 return [
                     'success' => false,
@@ -285,6 +314,32 @@ class CharacterService
                 'message' => 'Failed to get character moves',
                 'error' => $e->getMessage()
             ];
+        }
+    }
+
+    /**
+     * Get 4 random moves from the moves table.
+     */
+    private function getRandomMoves(): array
+    {
+        try {
+            $moves = Move::inRandomOrder()->limit(4)->get();
+
+            return $moves->map(function ($move, $index) {
+                return [
+                    'slot' => $index + 1,
+                    'move' => [
+                        'id' => $move->id,
+                        'name' => $move->move_name,
+                        'info' => $move->move_info,
+                    ]
+                ];
+            })->toArray();
+        } catch (\Exception $e) {
+            Log::error('Failed to get random moves', [
+                'error' => $e->getMessage()
+            ]);
+            return [];
         }
     }
 

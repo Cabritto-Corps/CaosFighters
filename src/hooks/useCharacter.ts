@@ -68,17 +68,6 @@ export const useCharacter = (): UseCharacterReturn => {
     }, [currentCharacter])
 
     /**
-     * Check if cached character is still valid
-     */
-    const isCacheValid = useCallback((cache: CharacterCache): boolean => {
-        const now = new Date()
-        const expiresAt = new Date(cache.expiresAt)
-
-        // Check if the cache is still valid (within the 12-hour window)
-        return now < expiresAt
-    }, [])
-
-    /**
      * Load character data from API
      */
     const loadCharacter = useCallback(async () => {
@@ -118,7 +107,7 @@ export const useCharacter = (): UseCharacterReturn => {
     }, [])
 
     /**
-     * Load character data from cache first, then API if needed
+     * Load character data directly from API (cache will be regenerated automatically)
      */
     const checkAndLoadCharacter = useCallback(async () => {
         try {
@@ -126,30 +115,15 @@ export const useCharacter = (): UseCharacterReturn => {
             setError(null)
             setCooldown(null)
 
-            // Try to get cached character first
-            const cachedData = await AsyncStorage.getItem(STORAGE_KEYS.USER_CURRENT_CHARACTER)
-
-            if (cachedData) {
-                const cache: CharacterCache = JSON.parse(cachedData)
-
-                if (isCacheValid(cache)) {
-                    // Use cached character if still valid
-                    setCurrentCharacter(cache.character)
-                    setIsLoading(false)
-                    return
-                }
-            }
-
-            // Cache is invalid or doesn't exist, fetch from API
+            // Always fetch from API to ensure we have the latest character data
             await loadCharacter()
         } catch (err) {
-            console.error('Error checking cached character:', err)
-            // If cache check fails, try to load from API
-            await loadCharacter()
+            console.error('Error loading character:', err)
+            setError(err instanceof Error ? err.message : 'Failed to load character')
         } finally {
             setIsLoading(false)
         }
-    }, [isCacheValid, loadCharacter])
+    }, [loadCharacter])
 
     /**
      * Regenerate character via API (includes validation)

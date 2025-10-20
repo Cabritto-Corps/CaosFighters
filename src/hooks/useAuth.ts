@@ -3,8 +3,9 @@
  * Custom hook for managing authentication state and operations
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useCallback, useEffect, useState } from 'react'
-import { apiService } from '../services/api'
+import { apiService, STORAGE_KEYS } from '../services/api'
 import type {
     AuthResult,
     AuthState,
@@ -82,6 +83,9 @@ export const useAuth = () => {
                     // Store token and user data
                     await apiService.storeAuthData(token, user)
 
+                    // Clear character cache after login/register to ensure fresh data
+                    await AsyncStorage.removeItem(STORAGE_KEYS.USER_CURRENT_CHARACTER)
+
                     setAuthState({
                         user,
                         token,
@@ -138,6 +142,9 @@ export const useAuth = () => {
 
                     // Store token and user data
                     await apiService.storeAuthData(token, user)
+
+                    // Clear character cache after login/register to ensure fresh data
+                    await AsyncStorage.removeItem(STORAGE_KEYS.USER_CURRENT_CHARACTER)
 
                     setAuthState({
                         user,

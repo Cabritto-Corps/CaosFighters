@@ -3,6 +3,8 @@ export interface CharacterStatus {
     attack: number;
     defense: number;
     speed: number;
+    agility: number;
+    strength: number;
     [key: string]: number; // Allow for additional stats
 }
 

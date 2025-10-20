@@ -3,14 +3,23 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\CharacterService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
 {
+    protected $characterService;
+
+    public function __construct()
+    {
+        $this->characterService = app(CharacterService::class);
+    }
+
     /**
      * Login user and return token.
      */
@@ -40,6 +49,19 @@ class AuthController extends Controller
             }
 
             $user = Auth::user();
+
+            // Check and ensure user has a character assigned (create if needed or expired)
+            try {
+                Log::info('Checking character assignment for user during login', ['user_id' => $user->id]);
+                $this->characterService->getUserCurrentCharacter($user->id);
+                Log::info('Character assignment verified/created during login', ['user_id' => $user->id]);
+            } catch (\Exception $e) {
+                Log::error('Failed to ensure character assignment during login', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage()
+                ]);
+                // Continue with login even if character assignment fails
+            }
 
             // Create a simple token (you might want to use Laravel Sanctum for production)
             $token = $user->createToken('auth-token')->plainTextToken;
@@ -77,7 +99,7 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
+            'password' => 'required|string|min:6|confirmed',
             'status' => 'sometimes|string|in:active,inactive,pending'
         ]);
 
@@ -101,6 +123,20 @@ class AuthController extends Controller
 
             // Auto-login after registration
             Auth::login($user);
+
+            // Ensure new user gets a character assigned
+            try {
+                Log::info('Assigning character to new user during registration', ['user_id' => $user->id]);
+                $this->characterService->getUserCurrentCharacter($user->id);
+                Log::info('Character assigned to new user during registration', ['user_id' => $user->id]);
+            } catch (\Exception $e) {
+                Log::error('Failed to assign character to new user during registration', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage()
+                ]);
+                // Continue with registration even if character assignment fails
+            }
+
             $token = $user->createToken('auth-token')->plainTextToken;
 
             return response()->json([

@@ -284,27 +284,61 @@ class ApiService {
      */
 
     /**
-     * Get current character for user (auth-aware)
+     * Get current character (with user_id if logged in)
      */
     async getUserCurrentCharacter(): Promise<CharacterApiResponse> {
-        return this.makeRequest<CharacterApiResponse>(
-            API_CONFIG.ENDPOINTS.CHARACTERS.CURRENT,
-            {
-                method: 'GET',
+        try {
+            const { userData } = await this.getStoredAuthData()
+            const userId = userData?.id
+
+            let url = API_CONFIG.ENDPOINTS.CHARACTERS.CURRENT
+            if (userId) {
+                url += `?user_id=${encodeURIComponent(userId)}`
             }
-        )
+
+            return this.makeRequestWithoutAuth<CharacterApiResponse>(
+                url,
+                {
+                    method: 'GET',
+                }
+            )
+        } catch (error) {
+            // Fallback to no user_id if there's an error getting user data
+            return this.makeRequestWithoutAuth<CharacterApiResponse>(
+                API_CONFIG.ENDPOINTS.CHARACTERS.CURRENT,
+                {
+                    method: 'GET',
+                }
+            )
+        }
     }
 
     /**
-     * Regenerate character (auth-aware with 12-hour validation)
+     * Regenerate character (with user_id if logged in)
      */
     async regenerateCharacter(): Promise<CharacterApiResponse> {
-        return this.makeRequest<CharacterApiResponse>(
-            API_CONFIG.ENDPOINTS.CHARACTERS.REGENERATE,
-            {
-                method: 'POST',
-            }
-        )
+        try {
+            const { userData } = await this.getStoredAuthData()
+            const userId = userData?.id
+
+            const body = userId ? { user_id: userId } : {}
+
+            return this.makeRequestWithoutAuth<CharacterApiResponse>(
+                API_CONFIG.ENDPOINTS.CHARACTERS.REGENERATE,
+                {
+                    method: 'POST',
+                    body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,
+                }
+            )
+        } catch (error) {
+            // Fallback to no user_id if there's an error getting user data
+            return this.makeRequestWithoutAuth<CharacterApiResponse>(
+                API_CONFIG.ENDPOINTS.CHARACTERS.REGENERATE,
+                {
+                    method: 'POST',
+                }
+            )
+        }
     }
 
     /**

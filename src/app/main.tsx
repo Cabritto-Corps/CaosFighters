@@ -51,6 +51,7 @@ export default function MainScreen() {
 
         return (
             <Image
+                key={`${currentCharacter.character.id}-${currentCharacter.character.form_id}`}
                 source={{ uri: currentCharacter.character.image_url }}
                 style={{
                     width: 120,
@@ -134,6 +135,12 @@ export default function MainScreen() {
             regenerateCharacter() // This will validate 12-hour limit and regenerate if allowed
         }
         // If canRegenerate is false, do nothing - the UI will show the cooldown message
+    }
+
+    const handleCharacterPress = () => {
+        if (currentCharacter) {
+            router.push('/character-details' as any)
+        }
     }
 
     return (
@@ -227,18 +234,16 @@ export default function MainScreen() {
                         }}
                     >
                         <Pressable
-                            onPress={handleRandomizeCharacter}
-                            disabled={!canRegenerate}
+                            onPress={handleCharacterPress}
                             style={({ pressed }) => ({
                                 backgroundColor: 'rgba(255, 255, 255, 0.05)',
                                 borderRadius: 24,
                                 padding: 32,
                                 alignItems: 'center',
                                 borderWidth: 1,
-                                borderColor: canRegenerate ? 'rgba(255, 255, 255, 0.1)' : 'rgba(248, 113, 113, 0.3)',
+                                borderColor: 'rgba(255, 255, 255, 0.1)',
                                 width: width * 0.85,
-                                opacity: canRegenerate ? 1 : 0.7,
-                                transform: [{ scale: pressed && canRegenerate ? 0.98 : 1 }],
+                                transform: [{ scale: pressed ? 0.98 : 1 }],
                             })}
                         >
                             <View style={{ marginBottom: 20 }}>{renderCharacterImage()}</View>
@@ -296,7 +301,7 @@ export default function MainScreen() {
                                         </View>
                                         <View style={{ alignItems: 'center' }}>
                                             <Text style={{ color: '#94a3b8', fontSize: 12, fontWeight: '500' }}>
-                                                Ataque
+                                                FOR
                                             </Text>
                                             <Text
                                                 style={{
@@ -306,12 +311,27 @@ export default function MainScreen() {
                                                     marginTop: 4,
                                                 }}
                                             >
-                                                {currentCharacter.character.status.attack || 0}
+                                                {currentCharacter.character.status.strength || 0}
                                             </Text>
                                         </View>
                                         <View style={{ alignItems: 'center' }}>
                                             <Text style={{ color: '#94a3b8', fontSize: 12, fontWeight: '500' }}>
-                                                Defesa
+                                                AGI
+                                            </Text>
+                                            <Text
+                                                style={{
+                                                    color: '#FFD700',
+                                                    fontSize: 18,
+                                                    fontWeight: '600',
+                                                    marginTop: 4,
+                                                }}
+                                            >
+                                                {currentCharacter.character.status.agility || 0}
+                                            </Text>
+                                        </View>
+                                        <View style={{ alignItems: 'center' }}>
+                                            <Text style={{ color: '#94a3b8', fontSize: 12, fontWeight: '500' }}>
+                                                DEF
                                             </Text>
                                             <Text
                                                 style={{
@@ -336,8 +356,8 @@ export default function MainScreen() {
                                         }}
                                     >
                                         {canRegenerate
-                                            ? 'Toque para gerar novo personagem'
-                                            : `Próxima geração de personagem em: ${timeUntilRegeneration}`}
+                                            ? 'Toque para ver detalhes do personagem'
+                                            : `Próxima geração: ${timeUntilRegeneration}`}
                                     </Text>
 
                                     {characterError && (
@@ -382,6 +402,19 @@ export default function MainScreen() {
                             )}
                         </Pressable>
                     </Animated.View>
+
+                    {/* Botão de Regenerar Personagem */}
+                    {canRegenerate && (
+                        <View style={{ marginBottom: 16, alignItems: 'center' }}>
+                            <ChaosButton
+                                title="GERAR NOVO PERSONAGEM"
+                                onPress={handleRandomizeCharacter}
+                                variant="secondary"
+                                size="small"
+                                disabled={characterLoading}
+                            />
+                        </View>
+                    )}
 
                     {/* Botão Principal - Iniciar Batalha */}
                     <View style={{ marginVertical: 32 }}>

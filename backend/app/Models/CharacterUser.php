@@ -36,6 +36,17 @@ class CharacterUser extends Model
     protected $table = 'character_user';
 
     /**
+     * The name of the "created at" column.
+     */
+    public const CREATED_AT = 'created_at';
+
+    /**
+     * The name of the "updated at" column.
+     * Set to null to disable updated_at since the table doesn't have this column.
+     */
+    public const UPDATED_AT = null;
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
@@ -44,6 +55,7 @@ class CharacterUser extends Model
         'user_id',
         'character_id',
         'moves',
+        'assigned_date',
         'created_at',
     ];
 
