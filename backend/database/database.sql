@@ -45,6 +45,7 @@ CREATE TABLE public.characters (
   name text NOT NULL UNIQUE,
   status jsonb NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
+  form_id integer NOT NULL,
   CONSTRAINT characters_pkey PRIMARY KEY (id),
   CONSTRAINT characters_tier_id_fkey FOREIGN KEY (tier_id) REFERENCES public.tiers(id)
 );

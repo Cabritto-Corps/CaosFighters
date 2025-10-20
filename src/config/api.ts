@@ -6,11 +6,25 @@
 // Determine if we're in development mode
 const isDevelopment = __DEV__
 
+// Environment-specific configuration
+const getBackendUrl = () => {
+    if (isDevelopment) {
+        // Choose one of the following options:
+
+        // Option 1: For tunnel development (recommended when using Expo tunnel)
+        const tunnelUrl = 'https://giselle-snippier-coralee.ngrok-free.dev' // Your ngrok URL
+        return `${tunnelUrl}/backend`
+
+        // Option 2: For LAN mode (uncomment the line below and comment the lines above)
+        // return 'http://192.168.215.2:8000/backend'
+    }
+
+    return 'https://your-production-url.com/backend'
+}
+
 export const API_CONFIG = {
     // Base URL switches between local and production
-    BASE_URL: isDevelopment
-        ? 'http://192.168.1.8:8000/backend' // Local Laravel development server
-        : 'https://your-production-url.com/backend', // Update this for production
+    BASE_URL: getBackendUrl(),
 
     // Request timeout in milliseconds
     TIMEOUT: 10000,
@@ -41,6 +55,8 @@ export const API_CONFIG = {
             LIST: '/characters',
             GET: (id: string) => `/characters/${id}`,
             BY_TIER: (tierId: number) => `/characters/tier/${tierId}`,
+            CURRENT: '/characters/current',
+            REGENERATE: '/characters/regenerate',
         },
 
         // Location endpoints

@@ -36,8 +36,10 @@ Route::apiResource('users', UserController::class);
 // Character Routes
 Route::prefix('characters')->group(function () {
     Route::get('/', [CharacterController::class, 'index']);
-    Route::get('/{id}', [CharacterController::class, 'show']);
     Route::get('/tier/{tierId}', [CharacterController::class, 'byTier']);
+    Route::get('/current', [CharacterController::class, 'getCurrentCharacter']);
+    Route::post('/regenerate', [CharacterController::class, 'regenerateCharacter']);
+    Route::get('/{id}', [CharacterController::class, 'show']); // This must be last to avoid conflicts
 });
 
 // Location Routes (no auth required)

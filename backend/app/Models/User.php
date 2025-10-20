@@ -9,6 +9,8 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Laravel\Sanctum\NewAccessToken;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * @property string $id
@@ -73,4 +75,20 @@ class User extends Authenticatable
      * @var bool
      */
     public $timestamps = false;
+
+    /**
+     * Get all character assignments for the user.
+     */
+    public function characterAssignments(): HasMany
+    {
+        return $this->hasMany(CharacterUser::class);
+    }
+
+    /**
+     * Get the user's current character assignment.
+     */
+    public function currentCharacter(): HasOne
+    {
+        return $this->hasOne(CharacterUser::class)->latest('created_at');
+    }
 }

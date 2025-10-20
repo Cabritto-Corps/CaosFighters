@@ -12,6 +12,9 @@ import type {
     TokenRefreshResponse,
     UserProfileResponse,
 } from '../types/auth'
+import type {
+    CharacterApiResponse
+} from '../types/character'
 
 /**
  * Storage keys for AsyncStorage
@@ -19,6 +22,7 @@ import type {
 export const STORAGE_KEYS = {
     AUTH_TOKEN: 'auth_token',
     USER_DATA: 'user_data',
+    USER_CURRENT_CHARACTER: 'user_current_character',
 } as const
 
 /**
@@ -43,7 +47,91 @@ class ApiService {
         return {
             'Content-Type': 'application/json',
             Accept: 'application/json',
+            'ngrok-skip-browser-warning': 'true', // Skip ngrok browser warning page
             ...(token && { Authorization: `Bearer ${token}` }),
+        }
+    }
+
+    /**
+     * Get headers without authentication
+     */
+    private getBasicHeaders(): Record<string, string> {
+        return {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'ngrok-skip-browser-warning': 'true', // Skip ngrok browser warning page
+        }
+    }
+
+    /**
+     * Generic method to make HTTP requests without authentication
+     */
+    private async makeRequestWithoutAuth<T>(
+        endpoint: string,
+        options: RequestInit = {}
+    ): Promise<T> {
+        const url = getFullUrl(endpoint)
+        const headers = this.getBasicHeaders()
+
+        const config: RequestInit = {
+            ...options,
+            headers: {
+                ...headers,
+                ...options.headers,
+            },
+        }
+
+        // Create abort controller for timeout
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), this.timeout)
+
+        try {
+            console.log(`Making request to: ${url}`, { headers })
+
+            const response = await fetch(url, {
+                ...config,
+                signal: controller.signal,
+            })
+
+            clearTimeout(timeoutId)
+
+            console.log(`Response status: ${response.status}`)
+
+            // Try to parse response as JSON, but handle non-JSON responses
+            let data
+            const contentType = response.headers.get('content-type')
+            if (contentType && contentType.includes('application/json')) {
+                try {
+                    data = await response.json()
+                } catch (jsonError) {
+                    console.error('Failed to parse JSON response:', jsonError)
+                    throw new Error(`Invalid JSON response from server: ${response.status}`)
+                }
+            } else {
+                const textResponse = await response.text()
+                console.error('Non-JSON response:', textResponse)
+                throw new Error(`Expected JSON response but got: ${contentType || 'unknown'}`)
+            }
+
+            // Check if response is ok
+            if (!response.ok) {
+                console.error('Request failed:', { status: response.status, data })
+                throw new Error(data.message || `HTTP ${response.status}: ${data.error || 'Server error'}`)
+            }
+
+            return data as T
+        } catch (error) {
+            clearTimeout(timeoutId)
+
+            if (error instanceof Error) {
+                if (error.name === 'AbortError') {
+                    throw new Error('Request timeout - please try again')
+                }
+                console.error('Fetch error:', error.message, { url, error })
+                throw error
+            }
+
+            throw new Error('Network error occurred')
         }
     }
 
@@ -70,6 +158,8 @@ class ApiService {
         const timeoutId = setTimeout(() => controller.abort(), this.timeout)
 
         try {
+            console.log(`Making request to: ${url}`, { headers })
+
             const response = await fetch(url, {
                 ...config,
                 signal: controller.signal,
@@ -77,12 +167,28 @@ class ApiService {
 
             clearTimeout(timeoutId)
 
-            // Parse response
-            const data = await response.json()
+            console.log(`Response status: ${response.status}`)
+
+            // Try to parse response as JSON, but handle non-JSON responses
+            let data
+            const contentType = response.headers.get('content-type')
+            if (contentType && contentType.includes('application/json')) {
+                try {
+                    data = await response.json()
+                } catch (jsonError) {
+                    console.error('Failed to parse JSON response:', jsonError)
+                    throw new Error(`Invalid JSON response from server: ${response.status}`)
+                }
+            } else {
+                const textResponse = await response.text()
+                console.error('Non-JSON response:', textResponse)
+                throw new Error(`Expected JSON response but got: ${contentType || 'unknown'}`)
+            }
 
             // Check if response is ok
             if (!response.ok) {
-                throw new Error(data.message || `HTTP ${response.status}`)
+                console.error('Request failed:', { status: response.status, data })
+                throw new Error(data.message || `HTTP ${response.status}: ${data.error || 'Server error'}`)
             }
 
             return data as T
@@ -93,6 +199,7 @@ class ApiService {
                 if (error.name === 'AbortError') {
                     throw new Error('Request timeout - please try again')
                 }
+                console.error('Fetch error:', error.message, { url, error })
                 throw error
             }
 
@@ -170,6 +277,34 @@ class ApiService {
             method: 'POST',
             body: JSON.stringify({ expo_push_token: expoPushToken }),
         })
+    }
+
+    /**
+     * Character Methods
+     */
+
+    /**
+     * Get current character for user (auth-aware)
+     */
+    async getUserCurrentCharacter(): Promise<CharacterApiResponse> {
+        return this.makeRequest<CharacterApiResponse>(
+            API_CONFIG.ENDPOINTS.CHARACTERS.CURRENT,
+            {
+                method: 'GET',
+            }
+        )
+    }
+
+    /**
+     * Regenerate character (auth-aware with 12-hour validation)
+     */
+    async regenerateCharacter(): Promise<CharacterApiResponse> {
+        return this.makeRequest<CharacterApiResponse>(
+            API_CONFIG.ENDPOINTS.CHARACTERS.REGENERATE,
+            {
+                method: 'POST',
+            }
+        )
     }
 
     /**
