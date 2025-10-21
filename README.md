@@ -1,4 +1,4 @@
-# Battle App - React Native with Expo
+# Battle App React Native with Expo
 
 A proximity-based battle game built with React Native, Expo, and Supabase.
 
