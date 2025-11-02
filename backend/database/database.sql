@@ -18,16 +18,6 @@ CREATE TABLE public.battles (
   CONSTRAINT battles_character2_id_fkey FOREIGN KEY (character2_id) REFERENCES public.characters(id),
   CONSTRAINT battles_winner_id_fkey FOREIGN KEY (winner_id) REFERENCES public.users(id)
 );
-CREATE TABLE public.character_moves (
-  id uuid NOT NULL DEFAULT gen_random_uuid(),
-  character_id uuid NOT NULL,
-  move_id uuid NOT NULL,
-  move_slot integer NOT NULL CHECK (move_slot >= 1 AND move_slot <= 4),
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  CONSTRAINT character_moves_pkey PRIMARY KEY (id),
-  CONSTRAINT character_moves_character_id_fkey FOREIGN KEY (character_id) REFERENCES public.characters(id),
-  CONSTRAINT character_moves_move_id_fkey FOREIGN KEY (move_id) REFERENCES public.moves(id)
-);
 CREATE TABLE public.character_user (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
@@ -35,6 +25,7 @@ CREATE TABLE public.character_user (
   moves jsonb NOT NULL,
   assigned_date date NOT NULL DEFAULT CURRENT_DATE,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
+  status jsonb NOT NULL DEFAULT '{"hp": 100, "agility": 100, "defense": 100, "strength": 100}'::jsonb,
   CONSTRAINT character_user_pkey PRIMARY KEY (id),
   CONSTRAINT character_user_character_id_fkey FOREIGN KEY (character_id) REFERENCES public.characters(id),
   CONSTRAINT character_user_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
@@ -43,7 +34,6 @@ CREATE TABLE public.characters (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   tier_id integer NOT NULL,
   name text NOT NULL UNIQUE,
-  status jsonb NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   form_id integer NOT NULL,
   CONSTRAINT characters_pkey PRIMARY KEY (id),
@@ -96,6 +86,8 @@ CREATE TABLE public.tiers (
   name text NOT NULL UNIQUE,
   description text,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
+  min_status jsonb NOT NULL DEFAULT '{"hp": 50, "agility": 30, "defense": 30, "strength": 30}'::jsonb,
+  max_status jsonb NOT NULL DEFAULT '{"hp": 150, "agility": 150, "defense": 150, "strength": 150}'::jsonb,
   CONSTRAINT tiers_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.user_location_history (

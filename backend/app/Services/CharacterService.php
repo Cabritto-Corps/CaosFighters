@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Character;
 use App\Models\CharacterUser;
-use App\Models\CharacterMove;
 use App\Models\Move;
 use Illuminate\Support\Facades\Log;
 
@@ -22,7 +21,7 @@ class CharacterService
     {
         try {
             // Get a random character from all available characters
-            $character = Character::with(['tier', 'characterMoves.move'])
+            $character = Character::with('tier')
                 ->inRandomOrder()
                 ->first();
 
@@ -33,6 +32,9 @@ class CharacterService
                 ];
             }
 
+            // Generate random status based on tier min/max
+            $randomStatus = $this->generateRandomStatus($character->tier);
+
             // Get 4 random moves from the moves table
             $characterMovesData = $this->getRandomMoves();
 
@@ -40,12 +42,14 @@ class CharacterService
             Log::info('Creating character_user assignment', [
                 'user_id' => $userId,
                 'character_id' => $character->id,
-                'character_name' => $character->name
+                'character_name' => $character->name,
+                'status' => $randomStatus
             ]);
 
             $characterUser = CharacterUser::create([
                 'user_id' => $userId,
                 'character_id' => $character->id,
+                'status' => $randomStatus,
                 'moves' => $characterMovesData,
                 'assigned_date' => now()->toDateString(),
                 'created_at' => now(),
@@ -55,6 +59,7 @@ class CharacterService
                 'character_user_id' => $characterUser->id,
                 'user_id' => $characterUser->user_id,
                 'character_id' => $characterUser->character_id,
+                'status' => $randomStatus,
                 'created_at' => $characterUser->created_at
             ]);
 
@@ -67,13 +72,13 @@ class CharacterService
                         'name' => $character->name,
                         'form_id' => $character->form_id,
                         'image_url' => "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{$character->form_id}.png",
-                        'status' => $character->status,
                         'tier' => $character->tier,
                     ],
                     'assignment' => [
                         'assigned_at' => $characterUser->created_at->toISOString(),
                         'expires_at' => $characterUser->expires_at->toISOString(),
                     ],
+                    'status' => $randomStatus,
                     'moves' => $characterMovesData,
                 ]
             ];
@@ -123,9 +128,7 @@ class CharacterService
                 return $this->assignRandomCharacterToUser($userId);
             }
 
-            // Return current valid character using saved moves from character_user
-            $characterMovesData = $characterUser->moves;
-
+            // Return current valid character using saved status and moves from character_user
             return [
                 'success' => true,
                 'data' => [
@@ -134,14 +137,14 @@ class CharacterService
                         'name' => $characterUser->character->name,
                         'form_id' => $characterUser->character->form_id,
                         'image_url' => "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{$characterUser->character->form_id}.png",
-                        'status' => $characterUser->character->status,
                         'tier' => $characterUser->character->tier,
                     ],
                     'assignment' => [
                         'assigned_at' => $characterUser->created_at->toISOString(),
                         'expires_at' => $characterUser->expires_at->toISOString(),
                     ],
-                    'moves' => $characterMovesData,
+                    'status' => $characterUser->status,
+                    'moves' => $characterUser->moves,
                 ]
             ];
         } catch (\Exception $e) {
@@ -175,9 +178,7 @@ class CharacterService
                 return $this->assignRandomCharacterToUser($userId);
             }
 
-            // Character is still valid, use saved moves from character_user
-            $characterMovesData = $characterUser->moves;
-
+            // Character is still valid, use saved status and moves from character_user
             return [
                 'success' => true,
                 'message' => 'Character is still valid',
@@ -187,14 +188,14 @@ class CharacterService
                         'name' => $characterUser->character->name,
                         'form_id' => $characterUser->character->form_id,
                         'image_url' => "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{$characterUser->character->form_id}.png",
-                        'status' => $characterUser->character->status,
                         'tier' => $characterUser->character->tier,
                     ],
                     'assignment' => [
                         'assigned_at' => $characterUser->created_at->toISOString(),
                         'expires_at' => $characterUser->expires_at->toISOString(),
                     ],
-                    'moves' => $characterMovesData,
+                    'status' => $characterUser->status,
+                    'moves' => $characterUser->moves,
                 ]
             ];
         } catch (\Exception $e) {
@@ -227,7 +228,6 @@ class CharacterService
             if ($characterUser && !$characterUser->isExpired()) {
                 // Character is still valid, cannot regenerate yet
                 $timeRemaining = $characterUser->expires_at->diffInHours(now());
-                $characterMovesData = $characterUser->moves;
 
                 return [
                     'success' => false,
@@ -243,14 +243,14 @@ class CharacterService
                             'name' => $characterUser->character->name,
                             'form_id' => $characterUser->character->form_id,
                             'image_url' => "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{$characterUser->character->form_id}.png",
-                            'status' => $characterUser->character->status,
                             'tier' => $characterUser->character->tier,
                         ],
                         'assignment' => [
                             'assigned_at' => $characterUser->created_at->toISOString(),
                             'expires_at' => $characterUser->expires_at->toISOString(),
                         ],
-                        'moves' => $characterMovesData,
+                        'status' => $characterUser->status,
+                        'moves' => $characterUser->moves,
                     ]
                 ];
             }
@@ -266,52 +266,6 @@ class CharacterService
             return [
                 'success' => false,
                 'message' => 'Failed to regenerate character',
-                'error' => $e->getMessage()
-            ];
-        }
-    }
-
-    /**
-     * Get character moves data from character_moves table.
-     */
-    public function getCharacterWithMoves(string $characterId): array
-    {
-        try {
-            $character = Character::with(['tier', 'characterMoves.move'])
-                ->find($characterId);
-
-            if (!$character) {
-                return [
-                    'success' => false,
-                    'message' => 'Character not found'
-                ];
-            }
-
-            $characterMovesData = $this->getCharacterMovesData($characterId);
-
-            return [
-                'success' => true,
-                'data' => [
-                    'character' => [
-                        'id' => $character->id,
-                        'name' => $character->name,
-                        'form_id' => $character->form_id,
-                        'image_url' => "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{$character->form_id}.png",
-                        'status' => $character->status,
-                        'tier' => $character->tier,
-                    ],
-                    'moves' => $characterMovesData,
-                ]
-            ];
-        } catch (\Exception $e) {
-            Log::error('Failed to get character with moves', [
-                'character_id' => $characterId,
-                'error' => $e->getMessage()
-            ]);
-
-            return [
-                'success' => false,
-                'message' => 'Failed to get character moves',
                 'error' => $e->getMessage()
             ];
         }
@@ -344,32 +298,43 @@ class CharacterService
     }
 
     /**
-     * Get character moves data formatted for the API response.
+     * Generate random status for a character based on tier constraints.
      */
-    private function getCharacterMovesData(string $characterId): array
+    private function generateRandomStatus($tier): array
     {
         try {
-            $characterMoves = CharacterMove::with('move')
-                ->where('character_id', $characterId)
-                ->orderBy('move_slot')
-                ->get();
+            $minStatus = $tier->min_status ?? [
+                'hp' => 50,
+                'agility' => 30,
+                'defense' => 30,
+                'strength' => 30,
+            ];
 
-            return $characterMoves->map(function ($characterMove) {
-                return [
-                    'slot' => $characterMove->move_slot,
-                    'move' => [
-                        'id' => $characterMove->move->id,
-                        'name' => $characterMove->move->move_name,
-                        'info' => $characterMove->move->move_info,
-                    ]
-                ];
-            })->toArray();
+            $maxStatus = $tier->max_status ?? [
+                'hp' => 150,
+                'agility' => 150,
+                'defense' => 150,
+                'strength' => 150,
+            ];
+
+            return [
+                'hp' => rand($minStatus['hp'], $maxStatus['hp']),
+                'agility' => rand($minStatus['agility'], $maxStatus['agility']),
+                'defense' => rand($minStatus['defense'], $maxStatus['defense']),
+                'strength' => rand($minStatus['strength'], $maxStatus['strength']),
+            ];
         } catch (\Exception $e) {
-            Log::error('Failed to get character moves data', [
-                'character_id' => $characterId,
+            Log::error('Failed to generate random status', [
                 'error' => $e->getMessage()
             ]);
-            return [];
+
+            // Return default status if generation fails
+            return [
+                'hp' => 100,
+                'agility' => 100,
+                'defense' => 100,
+                'strength' => 100,
+            ];
         }
     }
 
@@ -380,7 +345,7 @@ class CharacterService
     {
         try {
             // Get a random character from all available characters
-            $character = Character::with(['tier', 'characterMoves.move'])
+            $character = Character::with('tier')
                 ->inRandomOrder()
                 ->first();
 
@@ -391,8 +356,11 @@ class CharacterService
                 ];
             }
 
-            // Get character moves for the moves data
-            $characterMovesData = $this->getCharacterMovesData($character->id);
+            // Generate random status based on tier
+            $randomStatus = $this->generateRandomStatus($character->tier);
+
+            // Get random moves
+            $movesData = $this->getRandomMoves();
 
             return [
                 'success' => true,
@@ -403,14 +371,14 @@ class CharacterService
                         'name' => $character->name,
                         'form_id' => $character->form_id,
                         'image_url' => "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/{$character->form_id}.png",
-                        'status' => $character->status,
                         'tier' => $character->tier,
                     ],
                     'assignment' => [
                         'assigned_at' => now()->toISOString(),
                         'expires_at' => now()->addHours(12)->toISOString(),
                     ],
-                    'moves' => $characterMovesData,
+                    'status' => $randomStatus,
+                    'moves' => $movesData,
                 ]
             ];
         } catch (\Exception $e) {

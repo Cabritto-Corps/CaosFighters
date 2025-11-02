@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BattleController;
 use App\Http\Controllers\BenchmarkController;
 use App\Http\Controllers\CharacterController;
 use App\Http\Controllers\HealthController;
@@ -40,6 +41,13 @@ Route::prefix('characters')->group(function () {
     Route::get('/current', [CharacterController::class, 'getCurrentCharacter']);
     Route::post('/regenerate', [CharacterController::class, 'regenerateCharacter']);
     Route::get('/{id}', [CharacterController::class, 'show']); // This must be last to avoid conflicts
+});
+
+// Battle Routes
+Route::prefix('battles')->middleware('auth:sanctum')->group(function () {
+    Route::post('/start', [BattleController::class, 'start']);
+    Route::post('/{battleId}/attack', [BattleController::class, 'attack']);
+    Route::post('/{battleId}/end', [BattleController::class, 'end']);
 });
 
 // Location Routes (no auth required)

@@ -1,17 +1,26 @@
 export interface CharacterStatus {
     hp: number;
-    attack: number;
-    defense: number;
-    speed: number;
     agility: number;
+    defense: number;
     strength: number;
     [key: string]: number; // Allow for additional stats
+}
+
+export interface MoveInfo {
+    type: string;
+    power?: number;
+    accuracy?: number;
+    effect?: string;
+    effect_chance?: number;
+    [key: string]: any;
 }
 
 export interface CharacterTier {
     id: number;
     name: string;
     description?: string;
+    min_status?: CharacterStatus;
+    max_status?: CharacterStatus;
 }
 
 export interface Character {
@@ -19,7 +28,6 @@ export interface Character {
     name: string;
     form_id: number;
     image_url: string;
-    status: CharacterStatus;
     tier: CharacterTier;
 }
 
@@ -33,15 +41,14 @@ export interface CharacterMove {
     move: {
         id: string;
         name: string;
-        info: {
-            [key: string]: any; // Flexible move info structure
-        };
+        info: MoveInfo;
     };
 }
 
 export interface UserCharacter {
     character: Character;
     assignment: CharacterAssignment;
+    status: CharacterStatus;
     moves: CharacterMove[];
 }
 

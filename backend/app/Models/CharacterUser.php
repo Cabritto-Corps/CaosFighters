@@ -12,10 +12,11 @@ use Carbon\Carbon;
  * @property string $id
  * @property string $user_id
  * @property string $character_id
+ * @property array $status
  * @property array $moves
  * @property string $assigned_date
  * @property \Carbon\Carbon $created_at
- * 
+ *
  * @property-read \App\Models\User $user
  * @property-read \App\Models\Character $character
  */
@@ -54,6 +55,7 @@ class CharacterUser extends Model
     protected $fillable = [
         'user_id',
         'character_id',
+        'status',
         'moves',
         'assigned_date',
         'created_at',
@@ -67,6 +69,7 @@ class CharacterUser extends Model
     protected function casts(): array
     {
         return [
+            'status' => 'array',
             'moves' => 'array',
             'assigned_date' => 'date',
             'created_at' => 'datetime',

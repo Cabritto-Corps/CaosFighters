@@ -59,6 +59,13 @@ export const API_CONFIG = {
             REGENERATE: '/characters/regenerate',
         },
 
+        // Battle endpoints
+        BATTLES: {
+            START: '/battles/start',
+            ATTACK: (battleId: string) => `/battles/${battleId}/attack`,
+            END: (battleId: string) => `/battles/${battleId}/end`,
+        },
+
         // Location endpoints
         LOCATION: {
             UPDATE: '/location/update',

@@ -10,8 +10,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $id
  * @property string $name
  * @property string|null $description
+ * @property array $min_status
+ * @property array $max_status
  * @property \Carbon\Carbon $created_at
- * 
+ *
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Character> $characters
  */
 class Tier extends Model
@@ -33,6 +35,8 @@ class Tier extends Model
     protected $fillable = [
         'name',
         'description',
+        'min_status',
+        'max_status',
     ];
 
     /**
@@ -43,6 +47,8 @@ class Tier extends Model
     protected function casts(): array
     {
         return [
+            'min_status' => 'array',
+            'max_status' => 'array',
             'created_at' => 'datetime',
         ];
     }

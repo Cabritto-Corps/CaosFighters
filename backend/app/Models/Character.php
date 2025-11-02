@@ -6,16 +6,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * @property string $id
  * @property int $tier_id
  * @property string $name
- * @property array $status
  * @property int $form_id
  * @property \Carbon\Carbon $created_at
- * 
+ *
  * @property-read \App\Models\Tier $tier
  */
 class Character extends Model
@@ -37,7 +35,6 @@ class Character extends Model
     protected $fillable = [
         'tier_id',
         'name',
-        'status',
         'form_id',
     ];
 
@@ -49,7 +46,6 @@ class Character extends Model
     protected function casts(): array
     {
         return [
-            'status' => 'array',
             'created_at' => 'datetime',
         ];
     }
@@ -60,14 +56,6 @@ class Character extends Model
     public function tier(): BelongsTo
     {
         return $this->belongsTo(Tier::class);
-    }
-
-    /**
-     * Get the moves for the character.
-     */
-    public function characterMoves(): HasMany
-    {
-        return $this->hasMany(CharacterMove::class);
     }
 
     /**

@@ -15,6 +15,11 @@ import type {
 import type {
     CharacterApiResponse
 } from '../types/character'
+import type {
+    BattleStartResponse,
+    BattleAttackResponse,
+    BattleResultsResponse,
+} from '../types/battle'
 
 /**
  * Storage keys for AsyncStorage
@@ -339,6 +344,49 @@ class ApiService {
                 }
             )
         }
+    }
+
+    /**
+     * Battle Methods
+     */
+
+    /**
+     * Start a new battle
+     */
+    async startBattle(characterUserId: string): Promise<BattleStartResponse> {
+        return this.makeRequest<BattleStartResponse>(
+            API_CONFIG.ENDPOINTS.BATTLES.START,
+            {
+                method: 'POST',
+                body: JSON.stringify({ character_user_id: characterUserId }),
+            }
+        )
+    }
+
+    /**
+     * Execute an attack in a battle
+     */
+    async executeAttack(battleId: string, moveId: string): Promise<BattleAttackResponse> {
+        return this.makeRequest<BattleAttackResponse>(
+            API_CONFIG.ENDPOINTS.BATTLES.ATTACK(battleId),
+            {
+                method: 'POST',
+                body: JSON.stringify({ move_id: moveId }),
+            }
+        )
+    }
+
+    /**
+     * End a battle and award points
+     */
+    async endBattle(battleId: string, winnerId: string): Promise<BattleResultsResponse> {
+        return this.makeRequest<BattleResultsResponse>(
+            API_CONFIG.ENDPOINTS.BATTLES.END(battleId),
+            {
+                method: 'POST',
+                body: JSON.stringify({ winner_id: winnerId }),
+            }
+        )
     }
 
     /**
