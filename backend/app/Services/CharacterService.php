@@ -5,14 +5,23 @@ namespace App\Services;
 use App\Models\Character;
 use App\Models\CharacterUser;
 use App\Models\Move;
+use App\Services\Contracts\CharacterServiceInterface;
+use App\Repositories\CharacterRepository;
+use App\Repositories\CharacterUserRepository;
 use Illuminate\Support\Facades\Log;
 
-class CharacterService
+class CharacterService implements CharacterServiceInterface
 {
     /**
      * Character assignment duration in hours
      */
     private const ASSIGNMENT_DURATION_HOURS = 12;
+
+    public function __construct(
+        private CharacterRepository $characterRepository,
+        private CharacterUserRepository $characterUserRepository
+    ) {
+    }
 
     /**
      * Assign a random character to a user.
@@ -21,9 +30,7 @@ class CharacterService
     {
         try {
             // Get a random character from all available characters
-            $character = Character::with('tier')
-                ->inRandomOrder()
-                ->first();
+            $character = $this->characterRepository->getRandomCharacter();
 
             if (!$character) {
                 return [
@@ -39,14 +46,7 @@ class CharacterService
             $characterMovesData = $this->getRandomMoves();
 
             // Create character assignment
-            Log::info('Creating character_user assignment', [
-                'user_id' => $userId,
-                'character_id' => $character->id,
-                'character_name' => $character->name,
-                'status' => $randomStatus
-            ]);
-
-            $characterUser = CharacterUser::create([
+            $characterUser = $this->characterUserRepository->createAssignment([
                 'user_id' => $userId,
                 'character_id' => $character->id,
                 'status' => $randomStatus,
@@ -55,18 +55,11 @@ class CharacterService
                 'created_at' => now(),
             ]);
 
-            Log::info('Character_user assignment created successfully', [
-                'character_user_id' => $characterUser->id,
-                'user_id' => $characterUser->user_id,
-                'character_id' => $characterUser->character_id,
-                'status' => $randomStatus,
-                'created_at' => $characterUser->created_at
-            ]);
-
             return [
                 'success' => true,
                 'message' => 'Character assigned successfully',
                 'data' => [
+                    'character_user_id' => $characterUser->id,
                     'character' => [
                         'id' => $character->id,
                         'name' => $character->name,
@@ -102,36 +95,28 @@ class CharacterService
     public function getUserCurrentCharacter(string $userId): array
     {
         try {
-            Log::info('getUserCurrentCharacter called', ['user_id' => $userId]);
-
             // Get the most recent character assignment
-            $characterUser = CharacterUser::with(['character.tier'])
-                ->where('user_id', $userId)
-                ->latest('created_at')
-                ->first();
-
-            Log::info('Character user lookup result', [
-                'user_id' => $userId,
-                'character_user_found' => $characterUser ? true : false,
-                'character_user_id' => $characterUser ? $characterUser->id : null,
-                'is_expired' => $characterUser ? $characterUser->isExpired() : null
-            ]);
+            $characterUser = $this->characterUserRepository->getUserCharacter($userId);
 
             // Check if user has no character or current character is expired
             if (!$characterUser || $characterUser->isExpired()) {
-                Log::info('No character or expired, generating new assignment', [
-                    'user_id' => $userId,
-                    'has_character' => $characterUser ? true : false,
-                    'is_expired' => $characterUser ? $characterUser->isExpired() : null
-                ]);
                 // Generate new character assignment
                 return $this->assignRandomCharacterToUser($userId);
             }
 
             // Return current valid character using saved status and moves from character_user
+            // Fallback to default status if not set (for backward compatibility with old records)
+            $status = $characterUser->status ?? [
+                'hp' => 100,
+                'agility' => 100,
+                'defense' => 100,
+                'strength' => 100,
+            ];
+
             return [
                 'success' => true,
                 'data' => [
+                    'character_user_id' => $characterUser->id,
                     'character' => [
                         'id' => $characterUser->character->id,
                         'name' => $characterUser->character->name,
@@ -143,7 +128,7 @@ class CharacterService
                         'assigned_at' => $characterUser->created_at->toISOString(),
                         'expires_at' => $characterUser->expires_at->toISOString(),
                     ],
-                    'status' => $characterUser->status,
+                    'status' => $status,
                     'moves' => $characterUser->moves,
                 ]
             ];
@@ -179,10 +164,19 @@ class CharacterService
             }
 
             // Character is still valid, use saved status and moves from character_user
+            // Fallback to default status if not set (for backward compatibility with old records)
+            $status = $characterUser->status ?? [
+                'hp' => 100,
+                'agility' => 100,
+                'defense' => 100,
+                'strength' => 100,
+            ];
+
             return [
                 'success' => true,
                 'message' => 'Character is still valid',
                 'data' => [
+                    'character_user_id' => $characterUser->id,
                     'character' => [
                         'id' => $characterUser->character->id,
                         'name' => $characterUser->character->name,
@@ -194,7 +188,7 @@ class CharacterService
                         'assigned_at' => $characterUser->created_at->toISOString(),
                         'expires_at' => $characterUser->expires_at->toISOString(),
                     ],
-                    'status' => $characterUser->status,
+                    'status' => $status,
                     'moves' => $characterUser->moves,
                 ]
             ];
@@ -229,6 +223,14 @@ class CharacterService
                 // Character is still valid, cannot regenerate yet
                 $timeRemaining = $characterUser->expires_at->diffInHours(now());
 
+                // Fallback to default status if not set (for backward compatibility with old records)
+                $status = $characterUser->status ?? [
+                    'hp' => 100,
+                    'agility' => 100,
+                    'defense' => 100,
+                    'strength' => 100,
+                ];
+
                 return [
                     'success' => false,
                     'message' => 'Character regeneration is on cooldown',
@@ -238,6 +240,7 @@ class CharacterService
                         'hours_remaining' => $timeRemaining,
                     ],
                     'data' => [
+                        'character_user_id' => $characterUser->id,
                         'character' => [
                             'id' => $characterUser->character->id,
                             'name' => $characterUser->character->name,
@@ -249,7 +252,7 @@ class CharacterService
                             'assigned_at' => $characterUser->created_at->toISOString(),
                             'expires_at' => $characterUser->expires_at->toISOString(),
                         ],
-                        'status' => $characterUser->status,
+                        'status' => $status,
                         'moves' => $characterUser->moves,
                     ]
                 ];
@@ -345,9 +348,7 @@ class CharacterService
     {
         try {
             // Get a random character from all available characters
-            $character = Character::with('tier')
-                ->inRandomOrder()
-                ->first();
+            $character = $this->characterRepository->getRandomCharacter();
 
             if (!$character) {
                 return [

@@ -5,11 +5,20 @@ namespace App\Services;
 use App\Models\Battle;
 use App\Models\CharacterUser;
 use App\Models\Move;
+use App\Services\Contracts\BattleServiceInterface;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
-class BattleService
+class BattleService implements BattleServiceInterface
 {
+    // Bot user ID for AI opponents
+    private const BOT_USER_ID = '00000000-0000-0000-0000-000000000001';
+
+    public function __construct(
+        private CharacterService $characterService
+    ) {
+    }
+
     /**
      * Start a new battle between player and a bot
      */
@@ -39,14 +48,14 @@ class BattleService
                 ];
             }
 
-            // Create battle record
+            // Create battle record (player1 vs bot player2)
             $battle = Battle::create([
                 'player1_id' => $userId,
-                'player2_id' => $userId, // For now, both are the same user (playing against bot)
+                'player2_id' => self::BOT_USER_ID, // Use dedicated bot user
                 'character1_id' => $playerCharacter->character_id,
                 'character2_id' => $botCharacter['character_id'],
-                'battle_timestamp' => now(),
                 'battle_log' => [],
+                'battle_timestamp' => now(),
             ]);
 
             Log::info('Battle started', [
@@ -60,6 +69,7 @@ class BattleService
                 'success' => true,
                 'data' => [
                     'battle_id' => $battle->id,
+                    'player_id' => $userId,  // Return actual user ID for winner validation
                     'player_character' => [
                         'character_user_id' => $playerCharacter->id,
                         'character' => [
@@ -193,7 +203,7 @@ class BattleService
     /**
      * End battle and award points to winner
      */
-    public function endBattle(string $battleId, string $winnerId): array
+    public function endBattle(string $battleId, string $winnerId, ?int $duration = null, ?array $battleLog = null): array
     {
         try {
             $battle = Battle::find($battleId);
@@ -205,17 +215,25 @@ class BattleService
                 ];
             }
 
-            // Calculate duration
-            $duration = $battle->battle_timestamp->diffInSeconds(now());
+            // Use provided duration or calculate it
+            $finalDuration = $duration ?? $battle->battle_timestamp->diffInSeconds(now());
 
             // Award points
             $pointsAwarded = $this->calculatePointsAwarded($winnerId, $battle);
 
-            // Update battle
-            $battle->update([
+            // Prepare update data
+            $updateData = [
                 'winner_id' => $winnerId,
-                'duration' => $duration,
-            ]);
+                'duration' => $finalDuration,
+            ];
+
+            // Add battle log if provided
+            if ($battleLog !== null) {
+                $updateData['battle_log'] = $battleLog;
+            }
+
+            // Update battle
+            $battle->update($updateData);
 
             // Award points to winner
             $winner = $battle->player1;
@@ -229,7 +247,7 @@ class BattleService
             Log::info('Battle ended', [
                 'battle_id' => $battleId,
                 'winner_id' => $winnerId,
-                'duration' => $duration,
+                'duration' => $finalDuration,
                 'points_awarded' => $pointsAwarded,
             ]);
 
@@ -239,7 +257,7 @@ class BattleService
                     'battle_id' => $battleId,
                     'winner_id' => $winnerId,
                     'points_awarded' => $pointsAwarded,
-                    'duration' => $duration,
+                    'duration' => $finalDuration,
                 ],
                 'message' => "Battle ended! {$pointsAwarded} points awarded!"
             ];
@@ -263,9 +281,8 @@ class BattleService
     private function generateBotOpponent(): ?array
     {
         try {
-            // Use CharacterService to generate random character
-            $characterService = new CharacterService();
-            $result = $characterService->getRandomCharacter();
+            // Use injected CharacterService to generate random character
+            $result = $this->characterService->getRandomCharacter();
 
             if (!$result['success']) {
                 return null;

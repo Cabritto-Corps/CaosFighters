@@ -354,39 +354,96 @@ class ApiService {
      * Start a new battle
      */
     async startBattle(characterUserId: string): Promise<BattleStartResponse> {
-        return this.makeRequest<BattleStartResponse>(
-            API_CONFIG.ENDPOINTS.BATTLES.START,
-            {
-                method: 'POST',
-                body: JSON.stringify({ character_user_id: characterUserId }),
+        try {
+            const { userData } = await this.getStoredAuthData()
+            const userId = userData?.id
+
+            if (!userId) {
+                throw new Error('User ID is required to start a battle')
             }
-        )
+
+            return this.makeRequestWithoutAuth<BattleStartResponse>(
+                API_CONFIG.ENDPOINTS.BATTLES.START,
+                {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        character_user_id: characterUserId,
+                        user_id: userId,
+                    }),
+                }
+            )
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error
+            }
+            throw new Error('Failed to start battle')
+        }
     }
 
     /**
      * Execute an attack in a battle
      */
     async executeAttack(battleId: string, moveId: string): Promise<BattleAttackResponse> {
-        return this.makeRequest<BattleAttackResponse>(
-            API_CONFIG.ENDPOINTS.BATTLES.ATTACK(battleId),
-            {
-                method: 'POST',
-                body: JSON.stringify({ move_id: moveId }),
+        try {
+            const { userData } = await this.getStoredAuthData()
+            const userId = userData?.id
+
+            if (!userId) {
+                throw new Error('User ID is required to execute an attack')
             }
-        )
+
+            return this.makeRequestWithoutAuth<BattleAttackResponse>(
+                API_CONFIG.ENDPOINTS.BATTLES.ATTACK(battleId),
+                {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        move_id: moveId,
+                        user_id: userId,
+                    }),
+                }
+            )
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error
+            }
+            throw new Error('Failed to execute attack')
+        }
     }
 
     /**
      * End a battle and award points
      */
-    async endBattle(battleId: string, winnerId: string): Promise<BattleResultsResponse> {
-        return this.makeRequest<BattleResultsResponse>(
-            API_CONFIG.ENDPOINTS.BATTLES.END(battleId),
-            {
-                method: 'POST',
-                body: JSON.stringify({ winner_id: winnerId }),
+    async endBattle(
+        battleId: string,
+        winnerId: string,
+        duration?: number,
+        battleLog?: string[]
+    ): Promise<BattleResultsResponse> {
+        try {
+            const { userData } = await this.getStoredAuthData()
+            const userId = userData?.id
+
+            if (!userId) {
+                throw new Error('User ID is required to end a battle')
             }
-        )
+
+            const payload: any = { winner_id: winnerId }
+            if (duration !== undefined) payload.duration = duration
+            if (battleLog) payload.battle_log = battleLog
+
+            return this.makeRequestWithoutAuth<BattleResultsResponse>(
+                API_CONFIG.ENDPOINTS.BATTLES.END(battleId),
+                {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                }
+            )
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error
+            }
+            throw new Error('Failed to end battle')
+        }
     }
 
     /**

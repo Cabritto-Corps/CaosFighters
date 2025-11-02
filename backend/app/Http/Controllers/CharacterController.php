@@ -4,17 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Character;
 use App\Services\CharacterService;
+use App\Repositories\CharacterRepository;
+use App\Http\Responses\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class CharacterController extends Controller
 {
-    protected $characterService;
-
-    public function __construct()
-    {
-        $this->characterService = app(CharacterService::class);
+    public function __construct(
+        protected CharacterService $characterService,
+        protected CharacterRepository $characterRepository
+    ) {
     }
     /**
      * Display a listing of characters.
@@ -22,40 +22,19 @@ class CharacterController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = Character::with('tier');
+            $filters = [
+                'tier_id' => $request->get('tier_id'),
+                'name' => $request->get('name'),
+                'status' => $request->get('status'),
+                'order_by' => $request->get('order_by', 'name'),
+                'order_direction' => $request->get('order_direction', 'asc'),
+                'per_page' => $request->get('per_page', 15),
+            ];
 
-            // Filter by tier_id if provided
-            if ($request->has('tier_id')) {
-                $query->where('tier_id', $request->tier_id);
-            }
+            $characters = $this->characterRepository->getPaginatedCharacters($filters);
 
-            // Filter by name if provided
-            if ($request->has('name')) {
-                $query->where('name', 'like', '%' . $request->name . '%');
-            }
-
-            // Filter by status if provided
-            if ($request->has('status')) {
-                $query->whereJsonContains('status', $request->status);
-            }
-
-            // Order by name by default
-            $orderBy = $request->get('order_by', 'name');
-            $orderDirection = $request->get('order_direction', 'asc');
-
-            if (in_array($orderBy, ['name', 'created_at', 'tier_id'])) {
-                $query->orderBy($orderBy, $orderDirection);
-            }
-
-            // Pagination
-            $perPage = $request->get('per_page', 15);
-            $perPage = min($perPage, 100); // Limit max per page
-
-            $characters = $query->paginate($perPage);
-
-            return response()->json([
-                'success' => true,
-                'data' => $characters->items(),
+            return ApiResponse::success([
+                'characters' => $characters->items(),
                 'pagination' => [
                     'current_page' => $characters->currentPage(),
                     'last_page' => $characters->lastPage(),
@@ -64,20 +43,10 @@ class CharacterController extends Controller
                     'from' => $characters->firstItem(),
                     'to' => $characters->lastItem(),
                 ],
-                'filters' => [
-                    'tier_id' => $request->tier_id,
-                    'name' => $request->name,
-                    'status' => $request->status,
-                    'order_by' => $orderBy,
-                    'order_direction' => $orderDirection,
-                ]
-            ]);
+                'filters' => $filters
+            ], 'Characters fetched successfully');
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch characters',
-                'error' => $e->getMessage()
-            ], 500);
+            return ApiResponse::serverError('Failed to fetch characters', $e->getMessage());
         }
     }
 
@@ -87,23 +56,15 @@ class CharacterController extends Controller
     public function show(string $id): JsonResponse
     {
         try {
-            $character = Character::with('tier')->findOrFail($id);
+            $character = $this->characterRepository->getCharacterById($id);
 
-            return response()->json([
-                'success' => true,
-                'data' => $character
-            ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Character not found'
-            ], 404);
+            if (!$character) {
+                return ApiResponse::notFound('Character not found');
+            }
+
+            return ApiResponse::success($character, 'Character fetched successfully');
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch character',
-                'error' => $e->getMessage()
-            ], 500);
+            return ApiResponse::serverError('Failed to fetch character', $e->getMessage());
         }
     }
 
@@ -113,23 +74,15 @@ class CharacterController extends Controller
     public function byTier(int $tierId): JsonResponse
     {
         try {
-            $characters = Character::with('tier')
-                ->where('tier_id', $tierId)
-                ->orderBy('name')
-                ->get();
+            $characters = $this->characterRepository->getCharactersByTierId($tierId);
 
-            return response()->json([
-                'success' => true,
-                'data' => $characters,
+            return ApiResponse::success([
+                'characters' => $characters,
                 'count' => $characters->count(),
                 'tier_id' => $tierId
-            ]);
+            ], 'Characters by tier fetched successfully');
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch characters by tier',
-                'error' => $e->getMessage()
-            ], 500);
+            return ApiResponse::serverError('Failed to fetch characters by tier', $e->getMessage());
         }
     }
 
@@ -141,32 +94,19 @@ class CharacterController extends Controller
         try {
             $userId = $request->get('user_id');
 
-            Log::info('Character getCurrentCharacter called', [
-                'user_id' => $userId ? 'provided' : 'not provided'
-            ]);
-
             if ($userId) {
                 // Get user's assigned character from character_user table
                 $result = $this->characterService->getUserCurrentCharacter($userId);
             } else {
                 // Return random character without authentication
-                Log::info('Character getCurrentCharacter - returning random character');
                 $result = $this->characterService->getRandomCharacter();
             }
 
-            $httpStatus = $result['success'] ? 200 : 400;
-            return response()->json($result, $httpStatus);
+            return $result['success']
+                ? ApiResponse::success($result['data'], 'Character fetched successfully')
+                : ApiResponse::error($result['message'], $result['error'] ?? null);
         } catch (\Exception $e) {
-            Log::error('Character getCurrentCharacter error', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to get character',
-                'error' => $e->getMessage()
-            ], 500);
+            return ApiResponse::serverError('Failed to get character', $e->getMessage());
         }
     }
 
@@ -179,32 +119,19 @@ class CharacterController extends Controller
             // Try to get user_id from both query and body
             $userId = $request->get('user_id') ?? $request->input('user_id');
 
-            Log::info('Character regenerateCharacter called', [
-                'user_id' => $userId ? 'provided' : 'not provided'
-            ]);
-
             if ($userId) {
                 // Regenerate character for specific user
                 $result = $this->characterService->regenerateCharacterForUser($userId);
             } else {
                 // Return random character without authentication
-                Log::info('Character regenerateCharacter - returning random character');
                 $result = $this->characterService->getRandomCharacter();
             }
 
-            $httpStatus = $result['success'] ? 200 : 400;
-            return response()->json($result, $httpStatus);
+            return $result['success']
+                ? ApiResponse::success($result['data'], 'Character regenerated successfully')
+                : ApiResponse::error($result['message'], $result['error'] ?? null);
         } catch (\Exception $e) {
-            Log::error('Character regenerateCharacter error', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to regenerate character',
-                'error' => $e->getMessage()
-            ], 500);
+            return ApiResponse::serverError('Failed to regenerate character', $e->getMessage());
         }
     }
 }

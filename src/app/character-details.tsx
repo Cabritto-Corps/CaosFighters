@@ -2,15 +2,16 @@ import { useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, Animated, Image, Pressable, ScrollView, Text, View } from 'react-native'
-import ChaosButton from '../components/ui/ChaosButton'
 import ChaoticBackground from '../components/ui/ChaoticBackground'
+import MoveCard from '../components/ui/MoveCard'
+import MoveDetailModal, { MoveDetail } from '../components/ui/MoveDetailModal'
 import { useCharacter } from '../hooks/useCharacter'
-import type { CharacterMove } from '../types/character'
 
 export default function CharacterDetailsScreen() {
     const router = useRouter()
     const { currentCharacter } = useCharacter()
     const [fadeAnim] = useState(new Animated.Value(0))
+    const [selectedMove, setSelectedMove] = useState<MoveDetail | null>(null)
 
     useEffect(() => {
         Animated.timing(fadeAnim, {
@@ -88,29 +89,6 @@ export default function CharacterDetailsScreen() {
         </View>
     )
 
-    const renderMoveCard = (move: CharacterMove) => (
-        <View
-            key={move.slot}
-            style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                borderRadius: 12,
-                padding: 16,
-                borderWidth: 1,
-                borderColor: 'rgba(255, 255, 255, 0.1)',
-                marginBottom: 12,
-            }}
-        >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '600', marginBottom: 4 }}>
-                        {move.move.name}
-                    </Text>
-                    <Text style={{ color: '#94a3b8', fontSize: 12 }}>Slot {move.slot}</Text>
-                </View>
-            </View>
-        </View>
-    )
-
     if (!currentCharacter) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -120,7 +98,7 @@ export default function CharacterDetailsScreen() {
         )
     }
 
-    const { character, assignment, moves } = currentCharacter
+    const { character, assignment, moves, status } = currentCharacter
 
     return (
         <View style={{ flex: 1 }}>
@@ -198,10 +176,10 @@ export default function CharacterDetailsScreen() {
                             Atributos
                         </Text>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                            {renderAttributeCard('hp', character.status.hp)}
-                            {renderAttributeCard('agility', character.status.agility)}
-                            {renderAttributeCard('defense', character.status.defense)}
-                            {renderAttributeCard('strength', character.status.strength)}
+                            {renderAttributeCard('hp', status.hp)}
+                            {renderAttributeCard('agility', status.agility)}
+                            {renderAttributeCard('defense', status.defense)}
+                            {renderAttributeCard('strength', status.strength)}
                         </View>
                     </View>
 
@@ -234,11 +212,37 @@ export default function CharacterDetailsScreen() {
                         <Text style={{ fontSize: 20, fontWeight: '600', color: '#ffffff', marginBottom: 16 }}>
                             Movimentos ({moves.length})
                         </Text>
-                        {moves.map(renderMoveCard)}
+                        <Text style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
+                            Clique em um movimento para ver detalhes
+                        </Text>
+                        <View>
+                            {moves.map((move) => (
+                                <Pressable
+                                    key={move.move.id}
+                                    onPress={() =>
+                                        setSelectedMove({
+                                            id: move.move.id,
+                                            name: move.move.name,
+                                            power: move.move.info.power,
+                                            accuracy: move.move.info.accuracy,
+                                            effect_chance: move.move.info.effect_chance,
+                                            effect: move.move.info.effect,
+                                            type: move.move.info.type,
+                                        })
+                                    }
+                                >
+                                    <MoveCard move={move} />
+                                </Pressable>
+                            ))}
+                        </View>
                     </View>
 
-                    {/* Back Button */}
-                    <ChaosButton title="← Voltar" onPress={() => router.back()} variant="secondary" size="medium" />
+                    {/* Move Detail Modal */}
+                    <MoveDetailModal
+                        visible={selectedMove !== null}
+                        move={selectedMove}
+                        onClose={() => setSelectedMove(null)}
+                    />
                 </Animated.View>
             </ScrollView>
         </View>

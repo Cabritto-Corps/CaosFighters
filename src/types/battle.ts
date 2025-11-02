@@ -55,7 +55,45 @@ export interface BattleStartRequest {
 
 export interface BattleStartResponse {
     success: boolean
-    data?: BattleState
+    data?: {
+        battle_id: string
+        player_id: string  // Actual user ID for winner validation
+        player_character: {
+            character_user_id: string
+            character: {
+                id: string
+                name: string
+                form_id: string
+                image_url: string
+                tier: any
+            }
+            status: {
+                hp: number
+                strength: number
+                defense: number
+                agility: number
+            }
+            moves: any[]
+        }
+        bot_character: {
+            character_id: string
+            character: {
+                id: string
+                name: string
+                form_id: string
+                image_url: string
+                tier: any
+            }
+            status: {
+                hp: number
+                strength: number
+                defense: number
+                agility: number
+            }
+            moves: any[]
+        }
+        turn: 'player' | 'enemy'
+    }
     message?: string
     error?: string
 }

@@ -46,6 +46,7 @@ export interface CharacterMove {
 }
 
 export interface UserCharacter {
+    character_user_id?: string; // ID do character_user para batalhas
     character: Character;
     assignment: CharacterAssignment;
     status: CharacterStatus;

@@ -15,8 +15,8 @@ use Carbon\Carbon;
  * @property string $character1_id
  * @property string $character2_id
  * @property string|null $winner_id
- * @property array|null $battle_log
  * @property string|null $duration
+ * @property array|null $battle_log
  * @property \Carbon\Carbon $battle_timestamp
  * @property \Carbon\Carbon $created_at
  *
@@ -59,8 +59,8 @@ class Battle extends Model
         'character1_id',
         'character2_id',
         'winner_id',
-        'battle_log',
         'duration',
+        'battle_log',
         'battle_timestamp',
     ];
 

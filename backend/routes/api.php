@@ -2,7 +2,6 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BattleController;
-use App\Http\Controllers\BenchmarkController;
 use App\Http\Controllers\CharacterController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\LocationController;
@@ -11,14 +10,7 @@ use Illuminate\Support\Facades\Route;
 
 // Health Check Routes
 Route::prefix('health')->group(function () {
-    Route::get('/check', [HealthController::class, 'check']);
-    Route::get('/detailed', [HealthController::class, 'detailed']);
     Route::get('/ping', [HealthController::class, 'ping']);
-});
-
-// Public Routes
-Route::get('/hello', function () {
-    return response()->json(['message' => 'Hello World!']);
 });
 
 // Authentication Routes (no auth required)
@@ -44,7 +36,7 @@ Route::prefix('characters')->group(function () {
 });
 
 // Battle Routes
-Route::prefix('battles')->middleware('auth:sanctum')->group(function () {
+Route::prefix('battles')->group(function () {
     Route::post('/start', [BattleController::class, 'start']);
     Route::post('/{battleId}/attack', [BattleController::class, 'attack']);
     Route::post('/{battleId}/end', [BattleController::class, 'end']);
@@ -61,8 +53,3 @@ Route::prefix('location')->group(function () {
     Route::get('/test', [LocationController::class, 'test']);
 });
 
-// Benchmark Routes
-Route::prefix('benchmark')->group(function () {
-    Route::get('/users/{iterations?}', [BenchmarkController::class, 'users']);
-});
-// });

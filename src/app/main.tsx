@@ -7,6 +7,7 @@ import ChaoticBackground from '../components/ui/ChaoticBackground'
 import ConfigModal from '../components/ui/ConfigModal'
 import ResultModal from '../components/ui/ResultModal'
 import { useCharacter } from '../hooks/useCharacter'
+import { apiService } from '../services/api'
 
 const { width } = Dimensions.get('window')
 
@@ -22,6 +23,7 @@ export default function MainScreen() {
     } = useCharacter()
     const [configModalVisible, setConfigModalVisible] = useState(false)
     const [resultModalVisible, setResultModalVisible] = useState(false)
+    const [isStartingBattle, setIsStartingBattle] = useState(false)
     const [lastBattleResult, setLastBattleResult] = useState({
         victory: true,
         score: 1250,
@@ -106,20 +108,79 @@ export default function MainScreen() {
         // Character loading is now handled by useCharacter hook
     }, [])
 
-    const handleStartBattle = () => {
-        if (!currentCharacter) return
+    const handleStartBattle = async () => {
+        if (!currentCharacter || isStartingBattle) return
 
-        router.push({
-            pathname: '/battle' as any,
-            params: {
-                enemyName: currentCharacter.character.name,
-                enemyPower: currentCharacter.character.status.attack?.toString() || '500',
-                enemyLevel: currentCharacter.character.tier.id?.toString() || '1',
-                enemyIcon: currentCharacter.character.image_url,
-                enemyCharacter: 'random', // You might want to pass actual character ID
-                playerCharacter: 'random', // Default for now
-            },
-        })
+        try {
+            setIsStartingBattle(true)
+
+            // Call backend to generate random enemy
+            const response = await apiService.startBattle(currentCharacter.character_user_id)
+
+            if (!response.success || !response.data) {
+                console.error('Failed to start battle:', response)
+                return
+            }
+
+            const battleData = response.data
+
+            // Prepare player moves for the battle screen
+            const playerMoves = currentCharacter.moves?.map(m => ({
+                id: m.move?.id || m.id,
+                name: m.move?.name || m.name,
+                power: m.move?.info?.power,
+                accuracy: m.move?.info?.accuracy,
+                effect_chance: m.move?.info?.effect_chance,
+                effect: m.move?.info?.effect,
+                type: m.move?.info?.type,
+            })) || []
+
+            // Validate player stats - ensure they're numbers
+            const playerStats = {
+                hp: Number(currentCharacter.status.hp) || 100,
+                strength: Number(currentCharacter.status.strength) || 100,
+                defense: Number(currentCharacter.status.defense) || 100,
+                agility: Number(currentCharacter.status.agility) || 100,
+            }
+
+            // Prepare enemy moves from backend response
+            const enemyMoves = battleData.bot_character.moves?.map((m: any) => ({
+                id: m.move?.id || m.id,
+                name: m.move?.name || m.name,
+                power: m.move?.info?.power,
+            })) || []
+
+            // Validate enemy stats - ensure they're numbers
+            const enemyStats = {
+                hp: Number(battleData.bot_character.status.hp) || 100,
+                strength: Number(battleData.bot_character.status.strength) || 100,
+                defense: Number(battleData.bot_character.status.defense) || 100,
+                agility: Number(battleData.bot_character.status.agility) || 100,
+            }
+
+            router.push({
+                pathname: '/battle' as any,
+                params: {
+                    battleId: battleData.battle_id,
+                    // Player (current character) - use actual user_id from backend
+                    playerId: battleData.player_id,
+                    playerName: currentCharacter.character.name,
+                    playerIcon: currentCharacter.character.image_url,
+                    playerStats: JSON.stringify(playerStats),
+                    playerMoves: JSON.stringify(playerMoves),
+                    // Enemy (from backend)
+                    botId: '00000000-0000-0000-0000-000000000001',
+                    enemyName: battleData.bot_character.character.name,
+                    enemyIcon: battleData.bot_character.character.image_url,
+                    enemyStats: JSON.stringify(enemyStats),
+                    enemyMoves: JSON.stringify(enemyMoves),
+                },
+            })
+        } catch (error) {
+            console.error('Error starting battle:', error)
+        } finally {
+            setIsStartingBattle(false)
+        }
     }
 
     const handleSettings = () => {
@@ -296,7 +357,7 @@ export default function MainScreen() {
                                                     marginTop: 4,
                                                 }}
                                             >
-                                                {currentCharacter.character.status.hp || 0}
+                                                {currentCharacter.status.hp || 0}
                                             </Text>
                                         </View>
                                         <View style={{ alignItems: 'center' }}>
@@ -311,7 +372,7 @@ export default function MainScreen() {
                                                     marginTop: 4,
                                                 }}
                                             >
-                                                {currentCharacter.character.status.strength || 0}
+                                                {currentCharacter.status.strength || 0}
                                             </Text>
                                         </View>
                                         <View style={{ alignItems: 'center' }}>
@@ -326,7 +387,7 @@ export default function MainScreen() {
                                                     marginTop: 4,
                                                 }}
                                             >
-                                                {currentCharacter.character.status.agility || 0}
+                                                {currentCharacter.status.agility || 0}
                                             </Text>
                                         </View>
                                         <View style={{ alignItems: 'center' }}>
@@ -341,7 +402,7 @@ export default function MainScreen() {
                                                     marginTop: 4,
                                                 }}
                                             >
-                                                {currentCharacter.character.status.defense || 0}
+                                                {currentCharacter.status.defense || 0}
                                             </Text>
                                         </View>
                                     </View>
