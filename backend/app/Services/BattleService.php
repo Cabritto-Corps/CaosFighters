@@ -22,7 +22,19 @@ class BattleService implements BattleServiceInterface
     /**
      * Start a new battle between player and a bot
      */
-    public function startBattle(string $userId, string $playerCharacterUserId): array
+    public function startBattle(string $userId, string $playerCharacterUserId, bool $isMultiplayer = false): array
+    {
+        if ($isMultiplayer) {
+            return $this->startMultiplayerBattle($userId, $playerCharacterUserId);
+        }
+
+        return $this->startBotBattle($userId, $playerCharacterUserId);
+    }
+
+    /**
+     * Start a new battle between player and a bot
+     */
+    public function startBotBattle(string $userId, string $playerCharacterUserId): array
     {
         try {
             // Get player's character assignment
@@ -56,6 +68,7 @@ class BattleService implements BattleServiceInterface
                 'character2_id' => $botCharacter['character_id'],
                 'battle_log' => [],
                 'battle_timestamp' => now(),
+                'is_multiplayer' => false,
             ]);
 
             Log::info('Battle started', [
@@ -170,6 +183,25 @@ class BattleService implements BattleServiceInterface
             $battle->update(['battle_log' => $battleLog]);
 
             $nextTurn = $attackerId === $battle->player1_id ? 'enemy' : 'player';
+            
+            // Get attacker and defender character assignments for HP calculation
+            $attackerCharacterId = $attackerId === $battle->player1_id
+                ? $battle->character1_id
+                : $battle->character2_id;
+            $defenderCharacterId = $attackerId === $battle->player1_id
+                ? $battle->character2_id
+                : $battle->character1_id;
+            
+            $attackerAssignment = CharacterUser::where('character_id', $attackerCharacterId)->first();
+            $defenderAssignment = CharacterUser::where('character_id', $defenderCharacterId)->first();
+            
+            // Calculate current HP (simplified - in real implementation, track HP in battle state)
+            $defenderCurrentHp = $defenderAssignment ? ($defenderAssignment->status['hp'] ?? 100) - $damage : 100 - $damage;
+            $defenderCurrentHp = max(0, $defenderCurrentHp);
+            
+            // Check if battle ended
+            $battleEnded = $defenderCurrentHp <= 0;
+            $winnerId = $battleEnded ? $attackerId : null;
 
             Log::info('Attack executed', [
                 'battle_id' => $battleId,
@@ -177,6 +209,7 @@ class BattleService implements BattleServiceInterface
                 'move_id' => $moveId,
                 'damage' => $damage,
                 'next_turn' => $nextTurn,
+                'battle_ended' => $battleEnded,
             ]);
 
             return [
@@ -184,7 +217,19 @@ class BattleService implements BattleServiceInterface
                 'damage' => $damage,
                 'hit' => true,
                 'turn' => $nextTurn,
-                'message' => "Attack dealt {$damage} damage!"
+                'message' => "Attack dealt {$damage} damage!",
+                'move_name' => $move->move_name,
+                'enemy_current_hp' => $defenderCurrentHp,
+                'is_finished' => $battleEnded,
+                'winner_id' => $winnerId,
+                'data' => [
+                    'damage' => $damage,
+                    'move_name' => $move->move_name,
+                    'enemy_current_hp' => $defenderCurrentHp,
+                    'turn' => $nextTurn,
+                    'is_finished' => $battleEnded,
+                    'winner_id' => $winnerId,
+                ],
             ];
         } catch (\Exception $e) {
             Log::error('Failed to execute attack', [
@@ -206,7 +251,8 @@ class BattleService implements BattleServiceInterface
     public function endBattle(string $battleId, string $winnerId, ?int $duration = null, ?array $battleLog = null): array
     {
         try {
-            $battle = Battle::find($battleId);
+            $battle = Battle::with(['character1.tier', 'character2.tier', 'player1', 'player2'])
+                ->find($battleId);
 
             if (!$battle) {
                 return [
@@ -224,6 +270,7 @@ class BattleService implements BattleServiceInterface
             // Prepare update data
             $updateData = [
                 'winner_id' => $winnerId,
+                'points_awarded' => $pointsAwarded,
                 'duration' => $finalDuration,
             ];
 
@@ -357,6 +404,11 @@ class BattleService implements BattleServiceInterface
         try {
             $basePoints = 50;
 
+            // Ensure relationships are loaded
+            if (!$battle->relationLoaded('character1') || !$battle->relationLoaded('character2')) {
+                $battle->load(['character1.tier', 'character2.tier']);
+            }
+
             // Get tier difference (bonus for winning against stronger opponent)
             $winnerCharacterId = $winnerId === $battle->player1_id
                 ? $battle->character1_id
@@ -374,6 +426,11 @@ class BattleService implements BattleServiceInterface
                 $loserCharacter = $battle->character1;
             }
 
+            // Check if tiers are loaded
+            if (!$winnerCharacter->relationLoaded('tier') || !$loserCharacter->relationLoaded('tier')) {
+                return $basePoints; // Return base points if tiers not available
+            }
+
             $tierDiff = $winnerCharacter->tier->id - $loserCharacter->tier->id;
 
             // Bonus multiplier: 1.5x if winning against stronger opponent, 1x otherwise
@@ -385,6 +442,106 @@ class BattleService implements BattleServiceInterface
                 'error' => $e->getMessage()
             ]);
             return 50; // Default points
+        }
+    }
+
+    /**
+     * Start a multiplayer battle between two players
+     */
+    public function startMultiplayerBattle(
+        string $player1Id,
+        string $player1CharacterUserId,
+        string $player2Id,
+        string $player2CharacterUserId
+    ): array {
+        try {
+            // Get both players' character assignments
+            $player1Character = CharacterUser::with(['character', 'user'])
+                ->find($player1CharacterUserId);
+
+            $player2Character = CharacterUser::with(['character', 'user'])
+                ->find($player2CharacterUserId);
+
+            if (!$player1Character || $player1Character->user_id !== $player1Id) {
+                return [
+                    'success' => false,
+                    'message' => 'Invalid player 1 character assignment',
+                    'error' => 'Character not found or does not belong to user',
+                ];
+            }
+
+            if (!$player2Character || $player2Character->user_id !== $player2Id) {
+                return [
+                    'success' => false,
+                    'message' => 'Invalid player 2 character assignment',
+                    'error' => 'Character not found or does not belong to user',
+                ];
+            }
+
+            // Create battle record (player1 vs player2)
+            $battle = Battle::create([
+                'player1_id' => $player1Id,
+                'player2_id' => $player2Id,
+                'character1_id' => $player1Character->character_id,
+                'character2_id' => $player2Character->character_id,
+                'battle_log' => [],
+                'battle_timestamp' => now(),
+                'is_multiplayer' => true,
+            ]);
+
+            Log::info('Multiplayer battle started', [
+                'battle_id' => $battle->id,
+                'player1_id' => $player1Id,
+                'player2_id' => $player2Id,
+                'player1_character_id' => $player1Character->character_id,
+                'player2_character_id' => $player2Character->character_id,
+            ]);
+
+            return [
+                'success' => true,
+                'data' => [
+                    'battle_id' => $battle->id,
+                    'player1_id' => $player1Id,
+                    'player2_id' => $player2Id,
+                    'player1_character' => [
+                        'character_user_id' => $player1Character->id,
+                        'character' => [
+                            'id' => $player1Character->character->id,
+                            'name' => $player1Character->character->name,
+                            'form_id' => $player1Character->character->form_id,
+                            'image_url' => $player1Character->character->image_url,
+                            'tier' => $player1Character->character->tier,
+                        ],
+                        'status' => $player1Character->status,
+                        'moves' => $player1Character->moves,
+                    ],
+                    'player2_character' => [
+                        'character_user_id' => $player2Character->id,
+                        'character' => [
+                            'id' => $player2Character->character->id,
+                            'name' => $player2Character->character->name,
+                            'form_id' => $player2Character->character->form_id,
+                            'image_url' => $player2Character->character->image_url,
+                            'tier' => $player2Character->character->tier,
+                        ],
+                        'status' => $player2Character->status,
+                        'moves' => $player2Character->moves,
+                    ],
+                    'turn' => 'player', // Player 1 always goes first
+                ],
+            ];
+        } catch (\Exception $e) {
+            Log::error('Failed to start multiplayer battle', [
+                'player1_id' => $player1Id,
+                'player2_id' => $player2Id ?? 'unknown',
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Failed to start multiplayer battle',
+                'error' => $e->getMessage(),
+            ];
         }
     }
 }

@@ -29,6 +29,17 @@ class CharacterService implements CharacterServiceInterface
     public function assignRandomCharacterToUser(string $userId): array
     {
         try {
+            // Check if user already has a character for today
+            $today = now()->toDateString();
+            $existingCharacter = CharacterUser::where('user_id', $userId)
+                ->where('assigned_date', $today)
+                ->first();
+
+            // If exists, delete it to avoid unique constraint violation
+            if ($existingCharacter) {
+                $existingCharacter->delete();
+            }
+
             // Get a random character from all available characters
             $character = $this->characterRepository->getRandomCharacter();
 
@@ -51,7 +62,7 @@ class CharacterService implements CharacterServiceInterface
                 'character_id' => $character->id,
                 'status' => $randomStatus,
                 'moves' => $characterMovesData,
-                'assigned_date' => now()->toDateString(),
+                'assigned_date' => $today,
                 'created_at' => now(),
             ]);
 

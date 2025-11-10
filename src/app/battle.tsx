@@ -7,12 +7,20 @@ import ChaosButton from '../components/ui/ChaosButton'
 import ChaoticBackground from '../components/ui/ChaoticBackground'
 import MoveDetailModal, { MoveDetail } from '../components/ui/MoveDetailModal'
 import { apiService } from '../services/api'
+import { websocketService } from '../services/websocket'
+import { useAuth } from '../hooks/useAuth'
+import type { BattleMode, WebSocketMessage, BattleAttackWebSocketData } from '../types/battle'
 
 const { width, height } = Dimensions.get('window')
 
 export default function BattleScreen() {
     const router = useRouter()
     const params = useLocalSearchParams()
+    const { user } = useAuth()
+
+    // Determine battle mode
+    const battleMode: BattleMode = (params.battleMode as BattleMode) || 'bot'
+    const isMultiplayer = battleMode === 'multiplayer'
 
     // Parse player and enemy stats and moves from params
     type Stats = { hp: number; strength: number; defense: number; agility: number }
@@ -68,9 +76,11 @@ export default function BattleScreen() {
     const [winner, setWinner] = useState<'player' | 'enemy' | null>(null)
     const [currentDamage, setCurrentDamage] = useState(0)
     const [selectedMove, setSelectedMove] = useState<MoveDetail | null>(null)
+    const [waitingForOpponent, setWaitingForOpponent] = useState(false)
 
     // Battle timing
     const battleStartTimeRef = useRef<number>(Date.now())
+    const websocketUnsubscribeRef = useRef<(() => void) | null>(null)
 
     // Animações
     const fadeAnim = useRef(new Animated.Value(0)).current
@@ -97,7 +107,90 @@ export default function BattleScreen() {
         }).start()
 
         setBattleLog([`A batalha entre você e ${enemy.name} começou!`])
+
+        // Setup WebSocket for multiplayer battles
+        if (isMultiplayer && user?.id) {
+            const battleId = params.battleId as string
+            
+            const setupWebSocket = async () => {
+                // Ensure WebSocket is connected
+                if (!websocketService.isConnected()) {
+                    await websocketService.connect(user.id)
+                }
+
+                // Subscribe to battle channel
+                websocketService.subscribeToBattle(battleId)
+
+                // Set up message handler for battle events
+                const unsubscribe = websocketService.onMessage((message: WebSocketMessage) => {
+                    handleWebSocketMessage(message)
+                })
+
+                websocketUnsubscribeRef.current = unsubscribe
+            }
+
+            setupWebSocket()
+
+            // Return cleanup function
+            return () => {
+                if (websocketUnsubscribeRef.current) {
+                    websocketUnsubscribeRef.current()
+                }
+                websocketService.unsubscribeFromBattle(battleId)
+            }
+        }
     }, [])
+
+    const handleWebSocketMessage = (message: WebSocketMessage) => {
+        if (message.battle_id !== params.battleId) {
+            return // Not for this battle
+        }
+
+        switch (message.type) {
+            case 'battle_attack':
+                if (message.data) {
+                    const attackData = message.data as BattleAttackWebSocketData
+                    handleOpponentAttack(attackData)
+                }
+                break
+            case 'battle_state_update':
+                if (message.data) {
+                    const stateData = message.data as any
+                    if (stateData.player_hp !== undefined) setPlayerHP(stateData.player_hp)
+                    if (stateData.enemy_hp !== undefined) setEnemyHP(stateData.enemy_hp)
+                    if (stateData.turn) setTurn(stateData.turn)
+                }
+                break
+            case 'battle_end':
+                if (message.data) {
+                    const endData = message.data as any
+                    setBattleEnded(true)
+                    setWinner(endData.winner_id === params.playerId ? 'player' : 'enemy')
+                    setBattleLog((prev) => [...prev, endData.message || 'Batalha finalizada!'])
+                }
+                break
+        }
+    }
+
+    const handleOpponentAttack = (attackData: BattleAttackWebSocketData) => {
+        // Update enemy HP (which is actually the opponent's HP in multiplayer)
+        setEnemyHP(attackData.target_hp)
+        setCurrentDamage(attackData.damage)
+        setBattleLog((prev) => [
+            ...prev,
+            `${enemy.name} usou ${attackData.move_name} e causou ${attackData.damage} de dano!`,
+        ])
+        animateAttack('enemy', 'player', attackData.damage)
+
+        // Update turn
+        setTurn(attackData.turn)
+
+        // Check if battle ended
+        if (attackData.battle_ended && attackData.winner_id) {
+            setBattleEnded(true)
+            setWinner(attackData.winner_id === params.playerId ? 'player' : 'enemy')
+        }
+    }
 
     useEffect(() => {
         if (playerHP <= 0) {
@@ -112,14 +205,14 @@ export default function BattleScreen() {
     }, [playerHP, enemyHP])
 
     useEffect(() => {
-        if (turn === 'enemy' && !battleEnded) {
-            // IA simples do inimigo
+        if (turn === 'enemy' && !battleEnded && !isMultiplayer) {
+            // IA simples do inimigo (only for bot mode)
             const timer = setTimeout(() => {
                 enemyAttack()
             }, 1500)
             return () => clearTimeout(timer)
         }
-    }, [turn, battleEnded])
+    }, [turn, battleEnded, isMultiplayer])
 
     const animateAttack = (attacker: 'player' | 'enemy', target: 'player' | 'enemy', damage: number) => {
         const targetAnim = target === 'player' ? shakeAnimPlayer : shakeAnimEnemy
@@ -203,34 +296,48 @@ export default function BattleScreen() {
         ]).start()
     }
 
-    const playerAttack = (attack: PlayerMove) => {
+    const playerAttack = async (attack: PlayerMove) => {
         if (turn !== 'player' || battleEnded) return
 
-        const basePower = attack.power ?? 0
-
-        if (basePower > 0) {
-            // Stat-based damage calculation: power + (attacker.strength - defender.defense) * 0.1
-            const attackerStrength = player.stats.strength
-            const defenderDefense = enemy.stats.defense
-            const statsModifier = (attackerStrength - defenderDefense) * 0.1
-
-            // Add ±15% variance for randomness
-            const variance = Math.random() * 0.3 - 0.15
-            const damage = Math.max(1, Math.floor((basePower + statsModifier) * (1 + variance)))
-
-            // Ataque
-            setEnemyHP((prev) => Math.max(0, prev - damage))
-            setBattleLog((prev) => [...prev, `Você usou ${attack.name} e causou ${damage} de dano!`])
-            animateAttack('player', 'enemy', damage)
+        if (isMultiplayer) {
+            // Multiplayer mode - send attack via HTTP API
+            // Backend will broadcast result via Reverb
+            const battleId = params.battleId as string
+            try {
+                await apiService.executeAttack(battleId, attack.id.toString())
+                setWaitingForOpponent(true)
+                setTurn('enemy') // Optimistically set turn, will be confirmed by server
+            } catch (error) {
+                console.error('Failed to execute attack:', error)
+            }
         } else {
-            // Cura (poder negativo)
-            const healing = Math.abs(basePower)
-            setPlayerHP((prev) => Math.min(player.maxHP, prev + healing))
-            setBattleLog((prev) => [...prev, `Você usou ${attack.name} e curou ${healing} HP!`])
-            animateAttack('player', 'player', healing)
-        }
+            // Bot mode - calculate damage locally
+            const basePower = attack.power ?? 0
 
-        setTurn('enemy')
+            if (basePower > 0) {
+                // Stat-based damage calculation: power + (attacker.strength - defender.defense) * 0.1
+                const attackerStrength = player.stats.strength
+                const defenderDefense = enemy.stats.defense
+                const statsModifier = (attackerStrength - defenderDefense) * 0.1
+
+                // Add ±15% variance for randomness
+                const variance = Math.random() * 0.3 - 0.15
+                const damage = Math.max(1, Math.floor((basePower + statsModifier) * (1 + variance)))
+
+                // Ataque
+                setEnemyHP((prev) => Math.max(0, prev - damage))
+                setBattleLog((prev) => [...prev, `Você usou ${attack.name} e causou ${damage} de dano!`])
+                animateAttack('player', 'enemy', damage)
+            } else {
+                // Cura (poder negativo)
+                const healing = Math.abs(basePower)
+                setPlayerHP((prev) => Math.min(player.maxHP, prev + healing))
+                setBattleLog((prev) => [...prev, `Você usou ${attack.name} e curou ${healing} HP!`])
+                animateAttack('player', 'player', healing)
+            }
+
+            setTurn('enemy')
+        }
     }
 
     const enemyAttack = () => {
@@ -528,7 +635,13 @@ export default function BattleScreen() {
 
                             {turn === 'enemy' && (
                                 <View style={styles.waitingContainer}>
-                                    <Text style={styles.waitingText}>Aguardando turno do inimigo...</Text>
+                                    <Text style={styles.waitingText}>
+                                        {isMultiplayer
+                                            ? waitingForOpponent
+                                                ? 'Aguardando ataque do oponente...'
+                                                : 'Aguardando turno do oponente...'
+                                            : 'Aguardando turno do inimigo...'}
+                                    </Text>
                                 </View>
                             )}
                         </>

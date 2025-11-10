@@ -15,6 +15,7 @@ use Carbon\Carbon;
  * @property string $character1_id
  * @property string $character2_id
  * @property string|null $winner_id
+ * @property int|null $points_awarded
  * @property string|null $duration
  * @property array|null $battle_log
  * @property \Carbon\Carbon $battle_timestamp
@@ -59,6 +60,7 @@ class Battle extends Model
         'character1_id',
         'character2_id',
         'winner_id',
+        'points_awarded',
         'duration',
         'battle_log',
         'battle_timestamp',
@@ -72,6 +74,7 @@ class Battle extends Model
     protected function casts(): array
     {
         return [
+            'points_awarded' => 'integer',
             'battle_log' => 'array',
             'battle_timestamp' => 'datetime',
             'created_at' => 'datetime',

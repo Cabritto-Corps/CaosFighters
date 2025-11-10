@@ -3,11 +3,20 @@
  * Defines base URLs, endpoints, and timeouts for backend communication
  */
 
+import Constants from 'expo-constants'
+
 // Determine if we're in development mode
 const isDevelopment = __DEV__
 
-// Environment-specific configuration
+// Get API URL from environment variable or use default
 const getBackendUrl = () => {
+    // Check for environment variable first (from .env)
+    const envApiUrl = Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL
+    
+    if (envApiUrl) {
+        return envApiUrl
+    }
+    
     if (isDevelopment) {
         // Choose one of the following options:
 
@@ -27,7 +36,7 @@ export const API_CONFIG = {
     BASE_URL: getBackendUrl(),
 
     // Request timeout in milliseconds
-    TIMEOUT: 10000,
+    TIMEOUT: 30000,
 
     // API Endpoints organized by feature
     ENDPOINTS: {
@@ -62,8 +71,15 @@ export const API_CONFIG = {
         // Battle endpoints
         BATTLES: {
             START: '/battles/start',
+            START_BOT: '/battles/start', // Same endpoint, but with is_multiplayer=false
             ATTACK: (battleId: string) => `/battles/${battleId}/attack`,
             END: (battleId: string) => `/battles/${battleId}/end`,
+            HISTORY: '/battles/history',
+            GET: (battleId: string) => `/battles/${battleId}`,
+            MATCHMAKING: {
+                JOIN: '/battles/matchmaking/join',
+                LEAVE: '/battles/matchmaking/leave',
+            },
         },
 
         // Location endpoints
@@ -82,6 +98,12 @@ export const API_CONFIG = {
             CHECK: '/health/check',
             DETAILED: '/health/detailed',
             PING: '/health/ping',
+        },
+
+        // Ranking endpoints
+        RANKING: {
+            LIST: '/ranking',
+            POSITION: (userId: string) => `/ranking/position/${userId}`,
         },
     },
 }

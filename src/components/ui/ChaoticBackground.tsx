@@ -94,7 +94,7 @@ export default function ChaoticBackground({
   };
 
   return (
-    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: -1 }}>
       {/* Gradiente de fundo */}
       <LinearGradient
         colors={colors}
@@ -113,23 +113,12 @@ export default function ChaoticBackground({
           position: 'absolute',
           width: width,
           height: height,
-          opacity: 0.4,
         }}
       >
         {generateParticles()}
       </View>
 
-      {/* Overlay sutil para melhor legibilidade */}
-      <View
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.1)',
-        }}
-      />
+      {/* Overlay removido para evitar transparência indesejada */}
     </View>
   );
 }

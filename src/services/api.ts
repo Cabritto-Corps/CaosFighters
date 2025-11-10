@@ -19,7 +19,15 @@ import type {
     BattleStartResponse,
     BattleAttackResponse,
     BattleResultsResponse,
+    BattleHistoryResponse,
+    BattleDetailsResponse,
+    MatchmakingJoinRequest,
+    MatchmakingJoinResponse,
 } from '../types/battle'
+import type {
+    RankingResponse,
+    UserPositionResponse,
+} from '../types/ranking'
 
 /**
  * Storage keys for AsyncStorage
@@ -114,14 +122,26 @@ class ApiService {
                 }
             } else {
                 const textResponse = await response.text()
-                console.error('Non-JSON response:', textResponse)
+                console.error('Non-JSON response:', textResponse.substring(0, 500)) // Log first 500 chars
+                
+                // If it's an error response (4xx or 5xx), provide a more helpful error message
+                if (!response.ok) {
+                    // Try to extract error information from HTML if possible
+                    const errorMatch = textResponse.match(/<title>(.*?)<\/title>/i) || 
+                                      textResponse.match(/<h1>(.*?)<\/h1>/i) ||
+                                      textResponse.match(/Error:\s*(.*?)(?:\n|<)/i)
+                    
+                    const errorMessage = errorMatch ? errorMatch[1] : `Server returned HTML instead of JSON`
+                    throw new Error(`HTTP ${response.status}: ${errorMessage}`)
+                }
+                
                 throw new Error(`Expected JSON response but got: ${contentType || 'unknown'}`)
             }
 
             // Check if response is ok
             if (!response.ok) {
                 console.error('Request failed:', { status: response.status, data })
-                throw new Error(data.message || `HTTP ${response.status}: ${data.error || 'Server error'}`)
+                throw new Error(data?.message || `HTTP ${response.status}: ${data?.error || 'Server error'}`)
             }
 
             return data as T
@@ -186,14 +206,26 @@ class ApiService {
                 }
             } else {
                 const textResponse = await response.text()
-                console.error('Non-JSON response:', textResponse)
+                console.error('Non-JSON response:', textResponse.substring(0, 500)) // Log first 500 chars
+                
+                // If it's an error response (4xx or 5xx), provide a more helpful error message
+                if (!response.ok) {
+                    // Try to extract error information from HTML if possible
+                    const errorMatch = textResponse.match(/<title>(.*?)<\/title>/i) || 
+                                      textResponse.match(/<h1>(.*?)<\/h1>/i) ||
+                                      textResponse.match(/Error:\s*(.*?)(?:\n|<)/i)
+                    
+                    const errorMessage = errorMatch ? errorMatch[1] : `Server returned HTML instead of JSON`
+                    throw new Error(`HTTP ${response.status}: ${errorMessage}`)
+                }
+                
                 throw new Error(`Expected JSON response but got: ${contentType || 'unknown'}`)
             }
 
             // Check if response is ok
             if (!response.ok) {
                 console.error('Request failed:', { status: response.status, data })
-                throw new Error(data.message || `HTTP ${response.status}: ${data.error || 'Server error'}`)
+                throw new Error(data?.message || `HTTP ${response.status}: ${data?.error || 'Server error'}`)
             }
 
             return data as T
@@ -351,9 +383,9 @@ class ApiService {
      */
 
     /**
-     * Start a new battle
+     * Start a new battle against a bot
      */
-    async startBattle(characterUserId: string): Promise<BattleStartResponse> {
+    async startBotBattle(characterUserId: string): Promise<BattleStartResponse> {
         try {
             const { userData } = await this.getStoredAuthData()
             const userId = userData?.id
@@ -369,6 +401,7 @@ class ApiService {
                     body: JSON.stringify({
                         character_user_id: characterUserId,
                         user_id: userId,
+                        is_multiplayer: false,
                     }),
                 }
             )
@@ -378,6 +411,73 @@ class ApiService {
             }
             throw new Error('Failed to start battle')
         }
+    }
+
+    /**
+     * Start a multiplayer battle - joins matchmaking queue
+     */
+    async startMultiplayerBattle(characterUserId: string): Promise<MatchmakingJoinResponse> {
+        try {
+            const { userData } = await this.getStoredAuthData()
+            const userId = userData?.id
+
+            if (!userId) {
+                throw new Error('User ID is required to start a multiplayer battle')
+            }
+
+            return this.makeRequestWithoutAuth<MatchmakingJoinResponse>(
+                API_CONFIG.ENDPOINTS.BATTLES.MATCHMAKING.JOIN,
+                {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        character_user_id: characterUserId,
+                        user_id: userId,
+                    }),
+                }
+            )
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error
+            }
+            throw new Error('Failed to join matchmaking')
+        }
+    }
+
+    /**
+     * Leave matchmaking queue
+     */
+    async leaveMatchmaking(): Promise<{ success: boolean; message?: string }> {
+        try {
+            const { userData } = await this.getStoredAuthData()
+            const userId = userData?.id
+
+            if (!userId) {
+                throw new Error('User ID is required to leave matchmaking')
+            }
+
+            return this.makeRequestWithoutAuth(
+                API_CONFIG.ENDPOINTS.BATTLES.MATCHMAKING.LEAVE,
+                {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        user_id: userId,
+                    }),
+                }
+            )
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error
+            }
+            throw new Error('Failed to leave matchmaking')
+        }
+    }
+
+    /**
+     * Start a new battle (deprecated - use startBotBattle or startMultiplayerBattle)
+     * @deprecated Use startBotBattle() or startMultiplayerBattle() instead
+     */
+    async startBattle(characterUserId: string): Promise<BattleStartResponse> {
+        return this.startBotBattle(characterUserId)
     }
 
     /**
@@ -392,7 +492,7 @@ class ApiService {
                 throw new Error('User ID is required to execute an attack')
             }
 
-            return this.makeRequestWithoutAuth<BattleAttackResponse>(
+            const response = await this.makeRequestWithoutAuth<BattleAttackResponse>(
                 API_CONFIG.ENDPOINTS.BATTLES.ATTACK(battleId),
                 {
                     method: 'POST',
@@ -402,6 +502,8 @@ class ApiService {
                     }),
                 }
             )
+            
+            return response
         } catch (error) {
             if (error instanceof Error) {
                 throw error
@@ -443,6 +545,92 @@ class ApiService {
                 throw error
             }
             throw new Error('Failed to end battle')
+        }
+    }
+
+    /**
+     * Get user's battle history
+     */
+    async getBattleHistory(userId: string, limit: number = 50): Promise<BattleHistoryResponse> {
+        try {
+            const url = `${API_CONFIG.ENDPOINTS.BATTLES.HISTORY}?user_id=${encodeURIComponent(userId)}&limit=${limit}`
+            
+            return this.makeRequestWithoutAuth<BattleHistoryResponse>(
+                url,
+                {
+                    method: 'GET',
+                }
+            )
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error
+            }
+            throw new Error('Failed to get battle history')
+        }
+    }
+
+    /**
+     * Get battle details by ID
+     */
+    async getBattleDetails(battleId: string, userId: string): Promise<BattleDetailsResponse> {
+        try {
+            const url = `${API_CONFIG.ENDPOINTS.BATTLES.GET(battleId)}?user_id=${encodeURIComponent(userId)}`
+            
+            return this.makeRequestWithoutAuth<BattleDetailsResponse>(
+                url,
+                {
+                    method: 'GET',
+                }
+            )
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error
+            }
+            throw new Error('Failed to get battle details')
+        }
+    }
+
+    /**
+     * Ranking Methods
+     */
+
+    /**
+     * Get user ranking ordered by points
+     */
+    async getRanking(limit: number = 100): Promise<RankingResponse> {
+        try {
+            const url = `${API_CONFIG.ENDPOINTS.RANKING.LIST}?limit=${limit}`
+            
+            return this.makeRequestWithoutAuth<RankingResponse>(
+                url,
+                {
+                    method: 'GET',
+                }
+            )
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error
+            }
+            throw new Error('Failed to get ranking')
+        }
+    }
+
+    /**
+     * Get user's position in ranking
+     */
+    async getUserPosition(userId: string): Promise<UserPositionResponse> {
+        try {
+            return this.makeRequestWithoutAuth<UserPositionResponse>(
+                API_CONFIG.ENDPOINTS.RANKING.POSITION(userId),
+                {
+                    method: 'GET',
+                }
+            )
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error
+            }
+            throw new Error('Failed to get user position')
         }
     }
 

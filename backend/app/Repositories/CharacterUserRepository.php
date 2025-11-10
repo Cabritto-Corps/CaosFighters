@@ -19,8 +19,9 @@ class CharacterUserRepository
      */
     public function getUserCharacter(string $userId): ?CharacterUser
     {
-        return CharacterUser::with(['character', 'user'])
+        return CharacterUser::with(['character.tier', 'user'])
             ->where('user_id', $userId)
+            ->latest('created_at')
             ->first();
     }
 

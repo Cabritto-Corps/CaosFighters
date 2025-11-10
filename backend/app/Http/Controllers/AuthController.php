@@ -193,6 +193,14 @@ class AuthController extends Controller
         try {
             $user = $request->user();
 
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated',
+                    'error' => 'No authenticated user found'
+                ], 401);
+            }
+
             return response()->json([
                 'success' => true,
                 'data' => [

@@ -81,6 +81,13 @@ export default function RootLayout() {
             headerShown: false,
           }} 
         />
+        <Stack.Screen 
+          name="ranking" 
+          options={{ 
+            title: 'Ranking',
+            headerShown: false,
+          }} 
+        />
       </Stack>
     </SafeAreaProvider>
   );

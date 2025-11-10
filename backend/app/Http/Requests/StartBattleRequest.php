@@ -22,6 +22,7 @@ class StartBattleRequest extends FormRequest
         return [
             'character_user_id' => ['required', 'string', 'uuid'],
             'user_id' => ['required', 'string', 'uuid'],
+            'is_multiplayer' => ['sometimes', 'boolean'],
         ];
     }
 

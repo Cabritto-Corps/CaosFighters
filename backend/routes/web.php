@@ -1,7 +1,11 @@
 <?php
 
+use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return ['message' => 'CaosFighters API'];
 });
+
+// Broadcasting authentication route
+Broadcast::routes(['middleware' => ['web']]);

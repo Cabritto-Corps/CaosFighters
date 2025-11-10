@@ -1,0 +1,192 @@
+<?php
+
+namespace App\Services;
+
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+
+class MatchmakingService
+{
+    private const QUEUE_KEY = 'matchmaking_queue';
+    private const QUEUE_TIMEOUT = 30; // seconds
+
+    /**
+     * Add player to matchmaking queue
+     */
+    public function joinQueue(string $userId, string $characterUserId): array
+    {
+        try {
+            $queue = $this->getQueue();
+
+            // Check if user is already in queue
+            $existingIndex = $this->findUserInQueue($queue, $userId);
+            if ($existingIndex !== false) {
+                return [
+                    'success' => true,
+                    'message' => 'Already in queue',
+                    'queue_position' => $existingIndex + 1,
+                ];
+            }
+
+            // Add to queue
+            $queue[] = [
+                'user_id' => $userId,
+                'character_user_id' => $characterUserId,
+                'joined_at' => now()->timestamp,
+            ];
+
+            $this->saveQueue($queue);
+
+            Log::info('Player joined matchmaking queue', [
+                'user_id' => $userId,
+                'character_user_id' => $characterUserId,
+                'queue_size' => count($queue),
+            ]);
+
+            return [
+                'success' => true,
+                'message' => 'Joined matchmaking queue',
+                'queue_position' => count($queue),
+            ];
+        } catch (\Exception $e) {
+            Log::error('Failed to join matchmaking queue', [
+                'user_id' => $userId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Failed to join queue',
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Remove player from matchmaking queue
+     */
+    public function leaveQueue(string $userId): array
+    {
+        try {
+            $queue = $this->getQueue();
+            $index = $this->findUserInQueue($queue, $userId);
+
+            if ($index !== false) {
+                array_splice($queue, $index, 1);
+                $this->saveQueue($queue);
+
+                Log::info('Player left matchmaking queue', [
+                    'user_id' => $userId,
+                ]);
+            }
+
+            return [
+                'success' => true,
+                'message' => 'Left matchmaking queue',
+            ];
+        } catch (\Exception $e) {
+            Log::error('Failed to leave matchmaking queue', [
+                'user_id' => $userId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Failed to leave queue',
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Try to find a match for a player
+     * Returns opponent data if match found, null otherwise
+     */
+    public function findMatch(string $userId): ?array
+    {
+        try {
+            $queue = $this->getQueue();
+            $this->cleanExpiredEntries($queue);
+
+            $playerIndex = $this->findUserInQueue($queue, $userId);
+            if ($playerIndex === false) {
+                return null; // Player not in queue
+            }
+
+            $player = $queue[$playerIndex];
+
+            // Find another player in queue
+            foreach ($queue as $index => $opponent) {
+                if ($index !== $playerIndex && $opponent['user_id'] !== $userId) {
+                    // Match found! Remove both from queue
+                    array_splice($queue, max($playerIndex, $index), 1);
+                    array_splice($queue, min($playerIndex, $index), 1);
+                    $this->saveQueue($queue);
+
+                    Log::info('Match found', [
+                        'player1_id' => $userId,
+                        'player2_id' => $opponent['user_id'],
+                    ]);
+
+                    return [
+                        'opponent_user_id' => $opponent['user_id'],
+                        'opponent_character_user_id' => $opponent['character_user_id'],
+                        'player_character_user_id' => $player['character_user_id'],
+                    ];
+                }
+            }
+
+            return null; // No match found
+        } catch (\Exception $e) {
+            Log::error('Failed to find match', [
+                'user_id' => $userId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Get current queue
+     */
+    private function getQueue(): array
+    {
+        return Cache::get(self::QUEUE_KEY, []);
+    }
+
+    /**
+     * Save queue to cache
+     */
+    private function saveQueue(array $queue): void
+    {
+        Cache::put(self::QUEUE_KEY, $queue, now()->addMinutes(10));
+    }
+
+    /**
+     * Find user index in queue
+     */
+    private function findUserInQueue(array $queue, string $userId): int|false
+    {
+        foreach ($queue as $index => $entry) {
+            if ($entry['user_id'] === $userId) {
+                return $index;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Remove expired entries from queue
+     */
+    private function cleanExpiredEntries(array &$queue): void
+    {
+        $now = now()->timestamp;
+        $queue = array_filter($queue, function ($entry) use ($now) {
+            return ($now - $entry['joined_at']) < self::QUEUE_TIMEOUT;
+        });
+        $queue = array_values($queue); // Re-index array
+    }
+}
+
