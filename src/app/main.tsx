@@ -222,7 +222,7 @@ export default function MainScreen() {
                 await apiService.startMultiplayerBattle(currentCharacter.character_user_id)
                 
                 // Start polling for matches (fallback if WebSocket events don't work)
-                const pollInterval = setInterval(async () => {
+                    const pollInterval = setInterval(async () => {
                     if (!isSearchingOpponent) {
                         clearInterval(pollInterval)
                         return
@@ -230,10 +230,14 @@ export default function MainScreen() {
                     
                     // Try to find match via API
                     try {
-                        const matchResponse = await apiService.startMultiplayerBattle(currentCharacter.character_user_id)
-                        if (matchResponse.success && (matchResponse as any).data?.match_found) {
+                            const statusResponse = await apiService.checkMatchmakingStatus()
+                            if (
+                                statusResponse.success &&
+                                statusResponse.data?.match_found &&
+                                statusResponse.data.battle
+                            ) {
                             cancelMatchmaking()
-                            navigateToMultiplayerBattle((matchResponse as any).data.battle)
+                                navigateToMultiplayerBattle(statusResponse.data.battle)
                         }
                     } catch (error) {
                         // Ignore polling errors

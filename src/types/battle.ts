@@ -239,3 +239,13 @@ export interface MatchmakingJoinResponse {
     error?: string
     queue_position?: number
 }
+
+export interface MatchmakingStatusResponse {
+    success: boolean
+    data?: {
+        match_found: boolean
+        battle?: MatchFoundData
+    }
+    message?: string | null
+    error?: string
+}

@@ -138,6 +138,13 @@ class BattleController extends Controller
                 );
 
                 if ($battleResult['success']) {
+                    // Save pending match data for HTTP polling fallback
+                    $this->matchmakingService->storePendingMatch(
+                        $battleResult['data'],
+                        $validated['user_id'],
+                        $match['opponent_user_id']
+                    );
+
                     // Broadcast match found event to both players via Reverb
                     event(new MatchFound($validated['user_id'], $battleResult['data']));
                     event(new MatchFound($match['opponent_user_id'], $battleResult['data']));
@@ -184,6 +191,36 @@ class BattleController extends Controller
                 : ApiResponse::error($result['message'], $result['error'] ?? null);
         } catch (\Exception $e) {
             return ApiResponse::serverError('Failed to leave matchmaking', $e->getMessage());
+        }
+    }
+
+    /**
+     * Check matchmaking status for the authenticated user.
+     * GET /api/battles/matchmaking/status?user_id={userId}
+     */
+    public function matchmakingStatus(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'user_id' => 'required|string|uuid',
+        ]);
+
+        if ($validator->fails()) {
+            return ApiResponse::validationError('Validation failed', $validator->errors());
+        }
+
+        try {
+            $validated = $validator->validated();
+            $pendingMatch = $this->matchmakingService->pullPendingMatch($validated['user_id']);
+
+            if ($pendingMatch) {
+                return ApiResponse::success($pendingMatch, 'Match found');
+            }
+
+            return ApiResponse::success([
+                'match_found' => false,
+            ], 'Still searching for opponent');
+        } catch (\Exception $e) {
+            return ApiResponse::serverError('Failed to check matchmaking status', $e->getMessage());
         }
     }
 

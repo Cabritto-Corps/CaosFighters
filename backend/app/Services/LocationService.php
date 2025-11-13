@@ -12,9 +12,9 @@ use Illuminate\Support\Facades\Log;
 class LocationService
 {
     /**
-     * Battle proximity radius in meters
+     * Battle proximity radius in meters (1km)
      */
-    private const BATTLE_PROXIMITY_RADIUS = 100;
+    private const BATTLE_PROXIMITY_RADIUS = 1000;
 
     protected $notificationService;
 
@@ -68,11 +68,19 @@ class LocationService
                 ]
             ];
 
-            // If user can battle and there are nearby users, prepare battle notifications
-            if (!$isInSafeSpot && count($nearbyUsers) > 0) {
+            // Only send notifications if:
+            // 1. User is not in a safe spot
+            // 2. User has proximity notifications enabled
+            // 3. There are nearby users with notifications enabled
+            $currentUser = User::find($userId);
+            $userHasNotificationsEnabled = $currentUser && 
+                $currentUser->proximity_notifications_enabled && 
+                !empty($currentUser->expo_push_token);
+            
+            if (!$isInSafeSpot && $userHasNotificationsEnabled && count($nearbyUsers) > 0) {
                 $result['battle_opportunities'] = $this->prepareBattleOpportunities($userId, $nearbyUsers);
 
-                // Send notifications to nearby users
+                // Send notifications to the closest pair only
                 $this->sendProximityNotifications($userId, $nearbyUsers, $result['battle_opportunities']);
             }
 
@@ -159,6 +167,7 @@ class LocationService
 
     /**
      * Find nearby users within battle proximity
+     * Only returns users who have proximity notifications enabled and have a push token
      */
     public function findNearbyUsers(string $userId, float $latitude, float $longitude): array
     {
@@ -168,16 +177,23 @@ class LocationService
         $nearbyUsers = UserLocationHistory::select('user_id', 'latitude', 'longitude', 'timestamp')
             ->where('user_id', '!=', $userId)
             ->where('timestamp', '>=', $recentTime)
-            ->with('user:id,name,points,ranking,status')
+            ->with('user:id,name,points,ranking,status,proximity_notifications_enabled,expo_push_token')
             ->get()
             ->filter(function ($location) use ($latitude, $longitude) {
+                // Filter by distance
                 $distance = $this->calculateDistance(
                     $latitude,
                     $longitude,
                     $location->latitude,
                     $location->longitude
                 );
-                return $distance <= self::BATTLE_PROXIMITY_RADIUS;
+                
+                // Only include users who have proximity notifications enabled and have a push token
+                $hasNotificationsEnabled = $location->user && 
+                    $location->user->proximity_notifications_enabled && 
+                    !empty($location->user->expo_push_token);
+                
+                return $distance <= self::BATTLE_PROXIMITY_RADIUS && $hasNotificationsEnabled;
             })
             ->map(function ($location) use ($latitude, $longitude) {
                 $distance = $this->calculateDistance(
@@ -199,6 +215,7 @@ class LocationService
                     'last_seen' => $location->timestamp->toISOString()
                 ];
             })
+            ->sortBy('distance_meters') // Sort by distance, closest first
             ->values()
             ->toArray();
 
@@ -336,47 +353,56 @@ class LocationService
     }
 
     /**
-     * Send proximity notifications to nearby users
+     * Send proximity notifications to the closest pair only
+     * Only notifies the current user and the closest nearby user
      */
     private function sendProximityNotifications(string $userId, array $nearbyUsers, array $battleOpportunities): void
     {
         try {
             // Get current user info
             $currentUser = User::find($userId);
-            if (!$currentUser) {
+            if (!$currentUser || !$currentUser->proximity_notifications_enabled || empty($currentUser->expo_push_token)) {
                 return;
             }
 
-            // For each nearby user, send a battle invitation
-            foreach ($nearbyUsers as $nearbyUser) {
-                // Find the corresponding battle opportunity
-                $battleOpportunity = collect($battleOpportunities)
-                    ->firstWhere('opponent.user_id', $nearbyUser['user_id']);
-
-                if ($battleOpportunity) {
-                    // Get the nearby user's Expo push token (you'll need to add this to your User model)
-                    $nearbyUserModel = User::find($nearbyUser['user_id']);
-
-                    if ($nearbyUserModel && isset($nearbyUserModel->expo_push_token)) {
-                        // Send battle invitation notification
-                        $this->notificationService->sendBattleInvitation(
-                            $nearbyUserModel->expo_push_token,
-                            $battleOpportunity
-                        );
-                    }
-                }
+            // Only notify the closest user (first in sorted array)
+            if (count($nearbyUsers) === 0) {
+                return;
             }
 
-            // Send proximity alert to current user
-            if (isset($currentUser->expo_push_token)) {
-                $this->notificationService->sendProximityAlert(
-                    $currentUser->expo_push_token,
-                    [
-                        'nearby_count' => count($nearbyUsers),
-                        'can_battle' => true,
-                        'is_safe_spot' => false
-                    ]
-                );
+            $closestUser = $nearbyUsers[0];
+            
+            // Find the corresponding battle opportunity
+            $battleOpportunity = collect($battleOpportunities)
+                ->firstWhere('opponent.user_id', $closestUser['user_id']);
+
+            if ($battleOpportunity) {
+                // Get the nearby user's model
+                $nearbyUserModel = User::find($closestUser['user_id']);
+
+                if ($nearbyUserModel && $nearbyUserModel->proximity_notifications_enabled && !empty($nearbyUserModel->expo_push_token)) {
+                    // Send battle invitation notification to the nearby user
+                    $this->notificationService->sendBattleInvitation(
+                        $nearbyUserModel->expo_push_token,
+                        [
+                            'opponent' => [
+                                'user_id' => $currentUser->id,
+                                'name' => $currentUser->name,
+                                'points' => $currentUser->points,
+                                'ranking' => $currentUser->ranking
+                            ],
+                            'distance_meters' => $closestUser['distance_meters'],
+                            'battle_id' => $battleOpportunity['battle_id'],
+                            'expires_at' => $battleOpportunity['expires_at']
+                        ]
+                    );
+
+                    // Send battle invitation notification to the current user
+                    $this->notificationService->sendBattleInvitation(
+                        $currentUser->expo_push_token,
+                        $battleOpportunity
+                    );
+                }
             }
         } catch (\Exception $e) {
             Log::error('Failed to send proximity notifications', [

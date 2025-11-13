@@ -5,6 +5,7 @@ use App\Http\Controllers\BattleController;
 use App\Http\Controllers\CharacterController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\RankingController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -45,6 +46,7 @@ Route::prefix('battles')->group(function () {
     Route::post('/{battleId}/end', [BattleController::class, 'end']);
     Route::post('/matchmaking/join', [BattleController::class, 'joinMatchmaking']);
     Route::post('/matchmaking/leave', [BattleController::class, 'leaveMatchmaking']);
+    Route::get('/matchmaking/status', [BattleController::class, 'matchmakingStatus']);
 });
 
 // Location Routes (no auth required)
@@ -62,5 +64,11 @@ Route::prefix('location')->group(function () {
 Route::prefix('ranking')->group(function () {
     Route::get('/', [RankingController::class, 'index']);
     Route::get('/position/{userId}', [RankingController::class, 'getUserPosition']);
+});
+
+// Notification Routes (auth required)
+Route::prefix('notifications')->middleware('auth:sanctum')->group(function () {
+    Route::get('/preferences', [NotificationsController::class, 'getPreferences']);
+    Route::post('/preferences', [NotificationsController::class, 'updatePreferences']);
 });
 

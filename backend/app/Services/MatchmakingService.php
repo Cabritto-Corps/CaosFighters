@@ -9,6 +9,8 @@ class MatchmakingService
 {
     private const QUEUE_KEY = 'matchmaking_queue';
     private const QUEUE_TIMEOUT = 30; // seconds
+    private const PENDING_MATCH_PREFIX = 'matchmaking_pending_';
+    private const PENDING_MATCH_TTL = 60; // seconds
 
     /**
      * Add player to matchmaking queue
@@ -107,6 +109,7 @@ class MatchmakingService
         try {
             $queue = $this->getQueue();
             $this->cleanExpiredEntries($queue);
+            $this->saveQueue($queue);
 
             $playerIndex = $this->findUserInQueue($queue, $userId);
             if ($playerIndex === false) {
@@ -187,6 +190,53 @@ class MatchmakingService
             return ($now - $entry['joined_at']) < self::QUEUE_TIMEOUT;
         });
         $queue = array_values($queue); // Re-index array
+    }
+
+    /**
+     * Store pending match data for both players so they can retrieve via polling.
+     */
+    public function storePendingMatch(array $battleData, string $playerOneId, string $playerTwoId): void
+    {
+        $this->setPendingMatch($playerOneId, $battleData);
+        $this->setPendingMatch($playerTwoId, $battleData);
+    }
+
+    /**
+     * Retrieve pending match data for a player (one-time).
+     */
+    public function pullPendingMatch(string $userId): ?array
+    {
+        $key = $this->pendingMatchKey($userId);
+        $data = Cache::get($key);
+
+        if ($data) {
+            Cache::forget($key);
+        }
+
+        return $data;
+    }
+
+    /**
+     * Store pending match data for a single player.
+     */
+    private function setPendingMatch(string $userId, array $battleData): void
+    {
+        Cache::put(
+            $this->pendingMatchKey($userId),
+            [
+                'match_found' => true,
+                'battle' => $battleData,
+            ],
+            now()->addSeconds(self::PENDING_MATCH_TTL)
+        );
+    }
+
+    /**
+     * Build cache key for pending match.
+     */
+    private function pendingMatchKey(string $userId): string
+    {
+        return self::PENDING_MATCH_PREFIX.$userId;
     }
 }
 

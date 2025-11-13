@@ -24,9 +24,12 @@ class WebSocketService {
      */
     private getReverbConfig(): { host: string; port: number; key: string; cluster?: string } {
         // Get from environment variables first
-        const envKey = Constants.expoConfig?.extra?.reverbAppKey || process.env.EXPO_PUBLIC_REVERB_APP_KEY
-        const envHost = Constants.expoConfig?.extra?.reverbHost || process.env.EXPO_PUBLIC_REVERB_HOST
-        const envPort = Constants.expoConfig?.extra?.reverbPort || process.env.EXPO_PUBLIC_REVERB_PORT
+        const envKey =
+            (Constants.expoConfig?.extra as any)?.reverbAppKey || process.env.EXPO_PUBLIC_REVERB_APP_KEY
+        const envHost =
+            (Constants.expoConfig?.extra as any)?.reverbHost || process.env.EXPO_PUBLIC_REVERB_HOST
+        const envPort =
+            (Constants.expoConfig?.extra as any)?.reverbPort || process.env.EXPO_PUBLIC_REVERB_PORT
         
         if (envKey && envHost && envPort) {
             return {
@@ -35,11 +38,25 @@ class WebSocketService {
                 key: envKey,
             }
         }
-        
+
         // Fallback to API config-based detection
         // For local development
         if (__DEV__) {
             const baseUrl = API_CONFIG.BASE_URL
+
+            // If running through Expo Go / Metro, try to use hostUri (device-friendly IP)
+            const hostUri = Constants.expoConfig?.hostUri || (Constants as any)?.manifest?.debuggerHost
+            if (hostUri) {
+                const [host] = hostUri.replace('exp://', '').split(':')
+                if (host) {
+                    return {
+                        host,
+                        port: 8080,
+                        key: envKey || 'caosfighters-key',
+                    }
+                }
+            }
+
             if (baseUrl.includes('ngrok')) {
                 // Extract ngrok URL
                 const ngrokUrl = baseUrl.replace('/backend', '').replace('https://', '').replace('http://', '')

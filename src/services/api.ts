@@ -23,11 +23,17 @@ import type {
     BattleDetailsResponse,
     MatchmakingJoinRequest,
     MatchmakingJoinResponse,
+    MatchmakingStatusResponse,
 } from '../types/battle'
 import type {
     RankingResponse,
     UserPositionResponse,
 } from '../types/ranking'
+import type {
+    NotificationPreferencesResponse,
+    UpdateNotificationPreferencesRequest,
+    UpdateNotificationPreferencesResponse,
+} from '../types/notifications'
 
 /**
  * Storage keys for AsyncStorage
@@ -473,6 +479,31 @@ class ApiService {
     }
 
     /**
+     * Check matchmaking status for the current user (HTTP fallback).
+     */
+    async checkMatchmakingStatus(): Promise<MatchmakingStatusResponse> {
+        try {
+            const { userData } = await this.getStoredAuthData()
+            const userId = userData?.id
+
+            if (!userId) {
+                throw new Error('User ID is required to check matchmaking status')
+            }
+
+            const url = `${API_CONFIG.ENDPOINTS.BATTLES.MATCHMAKING.STATUS}?user_id=${encodeURIComponent(userId)}`
+
+            return this.makeRequestWithoutAuth<MatchmakingStatusResponse>(url, {
+                method: 'GET',
+            })
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error
+            }
+            throw new Error('Failed to check matchmaking status')
+        }
+    }
+
+    /**
      * Start a new battle (deprecated - use startBotBattle or startMultiplayerBattle)
      * @deprecated Use startBotBattle() or startMultiplayerBattle() instead
      */
@@ -631,6 +662,84 @@ class ApiService {
                 throw error
             }
             throw new Error('Failed to get user position')
+        }
+    }
+
+    /**
+     * Notification Methods
+     */
+
+    /**
+     * Get user's notification preferences
+     */
+    async getNotificationPreferences(): Promise<NotificationPreferencesResponse> {
+        try {
+            return this.makeRequest<NotificationPreferencesResponse>(
+                API_CONFIG.ENDPOINTS.NOTIFICATIONS.PREFERENCES,
+                {
+                    method: 'GET',
+                }
+            )
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error
+            }
+            throw new Error('Failed to get notification preferences')
+        }
+    }
+
+    /**
+     * Update user's notification preferences
+     */
+    async updateNotificationPreferences(
+        preferences: UpdateNotificationPreferencesRequest
+    ): Promise<UpdateNotificationPreferencesResponse> {
+        try {
+            return this.makeRequest<UpdateNotificationPreferencesResponse>(
+                API_CONFIG.ENDPOINTS.NOTIFICATIONS.PREFERENCES,
+                {
+                    method: 'POST',
+                    body: JSON.stringify(preferences),
+                }
+            )
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error
+            }
+            throw new Error('Failed to update notification preferences')
+        }
+    }
+
+    /**
+     * Update user location
+     */
+    async updateLocation(
+        userId: string,
+        latitude: number,
+        longitude: number
+    ): Promise<{
+        success: boolean
+        message?: string
+        data?: any
+        error?: string
+    }> {
+        try {
+            return this.makeRequestWithoutAuth(
+                API_CONFIG.ENDPOINTS.LOCATION.UPDATE,
+                {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        user_id: userId,
+                        latitude,
+                        longitude,
+                    }),
+                }
+            )
+        } catch (error) {
+            if (error instanceof Error) {
+                throw error
+            }
+            throw new Error('Failed to update location')
         }
     }
 

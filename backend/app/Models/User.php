@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property int|null $ranking
  * @property string $status
  * @property string|null $expo_push_token
+ * @property bool $proximity_notifications_enabled
  * @property \Carbon\Carbon $created_at
  * 
  * @method NewAccessToken createToken(string $name, array $abilities = ['*'], \DateTimeInterface|null $expiresAt = null)
@@ -42,6 +43,7 @@ class User extends Authenticatable
         'ranking',
         'status',
         'expo_push_token',
+        'proximity_notifications_enabled',
     ];
 
     /**
@@ -66,6 +68,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'points' => 'integer',
             'ranking' => 'integer',
+            'proximity_notifications_enabled' => 'boolean',
         ];
     }
 

@@ -76,7 +76,8 @@ class AuthController extends Controller
                         'email' => $user->email,
                         'points' => $user->points,
                         'ranking' => $user->ranking,
-                        'status' => $user->status
+                        'status' => $user->status,
+                        'proximity_notifications_enabled' => $user->proximity_notifications_enabled ?? false
                     ],
                     'token' => $token,
                     'token_type' => 'Bearer'
@@ -149,7 +150,8 @@ class AuthController extends Controller
                         'email' => $user->email,
                         'points' => $user->points,
                         'ranking' => $user->ranking,
-                        'status' => $user->status
+                        'status' => $user->status,
+                        'proximity_notifications_enabled' => $user->proximity_notifications_enabled ?? false
                     ],
                     'token' => $token,
                     'token_type' => 'Bearer'
@@ -210,6 +212,7 @@ class AuthController extends Controller
                     'points' => $user->points,
                     'ranking' => $user->ranking,
                     'status' => $user->status,
+                    'proximity_notifications_enabled' => $user->proximity_notifications_enabled ?? false,
                     'created_at' => $user->created_at
                 ]
             ]);

@@ -15,6 +15,7 @@ export interface User {
     status: 'active' | 'inactive' | 'pending'
     created_at?: string
     expo_push_token?: string | null
+    proximity_notifications_enabled?: boolean
 }
 
 /**

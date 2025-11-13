@@ -79,6 +79,7 @@ export const API_CONFIG = {
             MATCHMAKING: {
                 JOIN: '/battles/matchmaking/join',
                 LEAVE: '/battles/matchmaking/leave',
+                STATUS: '/battles/matchmaking/status',
             },
         },
 
@@ -104,6 +105,11 @@ export const API_CONFIG = {
         RANKING: {
             LIST: '/ranking',
             POSITION: (userId: string) => `/ranking/position/${userId}`,
+        },
+
+        // Notification endpoints
+        NOTIFICATIONS: {
+            PREFERENCES: '/notifications/preferences',
         },
     },
 }
