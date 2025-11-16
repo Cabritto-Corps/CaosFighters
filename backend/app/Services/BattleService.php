@@ -512,6 +512,7 @@ class BattleService implements BattleServiceInterface
                 'player2_character_id' => $player2Character->character_id,
             ]);
 
+
             return [
                 'success' => true,
                 'data' => [

@@ -21,7 +21,7 @@ const getBackendUrl = () => {
         // Choose one of the following options:
 
         // Option 1: For tunnel development (recommended when using Expo tunnel)
-        const tunnelUrl = 'https://teodora-nirvanic-nakisha.ngrok-free.dev/' // Your ngrok URL
+        const tunnelUrl = 'https://teodora-nirvanic-nakisha.ngrok-free.dev' // Your ngrok URL
         return `${tunnelUrl}/backend`
 
         // Option 2: For LAN mode (uncomment the line below and comment the lines above)

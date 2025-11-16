@@ -1,0 +1,19 @@
+FROM node:20-alpine
+
+WORKDIR /usr/src/app
+
+COPY package.json pnpm-lock.yaml ./
+
+RUN corepack enable \
+    && pnpm install
+
+COPY websocket-server.ts tsconfig.json ./
+
+ENV BACKEND_URL=http://backend:8000
+ENV WS_PORT=8080
+
+EXPOSE 8080
+
+CMD ["pnpm", "websocket"]
+
+
