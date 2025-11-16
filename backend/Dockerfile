@@ -4,7 +4,7 @@ WORKDIR /app
 
 COPY composer.json composer.lock ./
 
-RUN composer install --no-dev --optimize-autoloader --no-interaction --no-ansi
+RUN composer install --no-dev --optimize-autoloader --no-interaction --no-ansi --no-scripts
 
 FROM php:8.2-cli
 
@@ -13,7 +13,7 @@ RUN apt-get update \
         git \
         unzip \
         libpq-dev \
-    && docker-php-ext-install pdo pdo_pgsql \
+    && docker-php-ext-install pdo pdo_pgsql pcntl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /var/www/html

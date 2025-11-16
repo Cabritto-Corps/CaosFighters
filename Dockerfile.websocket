@@ -9,11 +9,14 @@ RUN corepack enable \
 
 COPY websocket-server.ts tsconfig.json ./
 
+# Build TypeScript to JavaScript to avoid ts-node/ESM issues
+RUN npx tsc websocket-server.ts --outDir dist --module commonjs
+
 ENV BACKEND_URL=http://backend:8000
 ENV WS_PORT=8080
 
 EXPOSE 8080
 
-CMD ["pnpm", "websocket"]
+CMD ["node", "dist/websocket-server.js"]
 
 

@@ -1,5 +1,5 @@
-import WebSocket from 'ws'
-import http from 'http'
+import { WebSocketServer, WebSocket } from 'ws'
+import * as http from 'http'
 
 // Get backend URL from environment or use default
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000'
@@ -16,7 +16,7 @@ interface Client {
 const clients = new Map<WebSocket, Client>()
 
 const server = http.createServer()
-const wss = new WebSocket.Server({ server })
+const wss = new WebSocketServer({ server })
 
 wss.on('connection', (ws: WebSocket) => {
     console.log('New WebSocket connection')
