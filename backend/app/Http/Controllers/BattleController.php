@@ -14,6 +14,7 @@ use App\Http\Requests\EndBattleRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 class BattleController extends Controller
 {
@@ -125,16 +126,45 @@ class BattleController extends Controller
                 $validated['character_user_id']
             );
 
-            // Try to find a match immediately
-            $match = $this->matchmakingService->findMatch($validated['user_id']);
+            if (!$result['success']) {
+                return ApiResponse::error($result['message'], $result['error'] ?? null);
+            }
 
-            if ($match) {
-                // Match found! Start battle
+            // Process all matches in the queue (not just for this player)
+            $matches = $this->matchmakingService->processMatches();
+            
+            Log::info('Matches found after joining queue', [
+                'user_id' => $validated['user_id'],
+                'matches_count' => count($matches),
+            ]);
+
+            // Check if this player was matched
+            $playerMatch = null;
+            foreach ($matches as $match) {
+                if ($match['player1']['user_id'] === $validated['user_id']) {
+                    $playerMatch = [
+                        'opponent_user_id' => $match['player2']['user_id'],
+                        'opponent_character_user_id' => $match['player2']['character_user_id'],
+                        'player_character_user_id' => $match['player1']['character_user_id'],
+                    ];
+                    break;
+                } elseif ($match['player2']['user_id'] === $validated['user_id']) {
+                    $playerMatch = [
+                        'opponent_user_id' => $match['player1']['user_id'],
+                        'opponent_character_user_id' => $match['player1']['character_user_id'],
+                        'player_character_user_id' => $match['player2']['character_user_id'],
+                    ];
+                    break;
+                }
+            }
+
+            // If this player was matched, start the battle
+            if ($playerMatch) {
                 $battleResult = $this->battleService->startMultiplayerBattle(
                     $validated['user_id'],
                     $validated['character_user_id'],
-                    $match['opponent_user_id'],
-                    $match['opponent_character_user_id']
+                    $playerMatch['opponent_user_id'],
+                    $playerMatch['opponent_character_user_id']
                 );
 
                 if ($battleResult['success']) {
@@ -142,12 +172,12 @@ class BattleController extends Controller
                     $this->matchmakingService->storePendingMatch(
                         $battleResult['data'],
                         $validated['user_id'],
-                        $match['opponent_user_id']
+                        $playerMatch['opponent_user_id']
                     );
 
                     // Broadcast match found event to both players via Reverb
                     event(new MatchFound($validated['user_id'], $battleResult['data']));
-                    event(new MatchFound($match['opponent_user_id'], $battleResult['data']));
+                    event(new MatchFound($playerMatch['opponent_user_id'], $battleResult['data']));
                     
                     // Return match found data
                     return ApiResponse::success([
@@ -156,13 +186,51 @@ class BattleController extends Controller
                     ], 'Match found! Battle started');
                 }
             }
+
+            // Process other matches that were found (for other players)
+            foreach ($matches as $match) {
+                if ($match['player1']['user_id'] !== $validated['user_id'] && 
+                    $match['player2']['user_id'] !== $validated['user_id']) {
+                    // This match is for other players, start their battle
+                    Log::info('Starting battle for other players', [
+                        'player1_id' => $match['player1']['user_id'],
+                        'player2_id' => $match['player2']['user_id'],
+                    ]);
+                    
+                    $battleResult = $this->battleService->startMultiplayerBattle(
+                        $match['player1']['user_id'],
+                        $match['player1']['character_user_id'],
+                        $match['player2']['user_id'],
+                        $match['player2']['character_user_id']
+                    );
+
+                    if ($battleResult['success']) {
+                        // Save pending match data for HTTP polling fallback
+                        $this->matchmakingService->storePendingMatch(
+                            $battleResult['data'],
+                            $match['player1']['user_id'],
+                            $match['player2']['user_id']
+                        );
+
+                        // Broadcast match found event to both players via Reverb
+                        event(new MatchFound($match['player1']['user_id'], $battleResult['data']));
+                        event(new MatchFound($match['player2']['user_id'], $battleResult['data']));
+                        
+                        Log::info('Battle started and events broadcasted for other players', [
+                            'battle_id' => $battleResult['data']['battle_id'] ?? null,
+                        ]);
+                    } else {
+                        Log::error('Failed to start battle for other players', [
+                            'error' => $battleResult['message'] ?? 'Unknown error',
+                        ]);
+                    }
+                }
+            }
             
             // No match found yet - keep in queue
             // The WebSocket server will handle matchmaking polling
 
-            return $result['success']
-                ? ApiResponse::success($result, 'Joined matchmaking queue')
-                : ApiResponse::error($result['message'], $result['error'] ?? null);
+            return ApiResponse::success($result, 'Joined matchmaking queue');
         } catch (\Exception $e) {
             return ApiResponse::serverError('Failed to join matchmaking', $e->getMessage());
         }
@@ -210,6 +278,34 @@ class BattleController extends Controller
 
         try {
             $validated = $validator->validated();
+            
+            // Process matches in queue (in case someone else joined)
+            $matches = $this->matchmakingService->processMatches();
+            
+            // Process any matches found
+            foreach ($matches as $match) {
+                $battleResult = $this->battleService->startMultiplayerBattle(
+                    $match['player1']['user_id'],
+                    $match['player1']['character_user_id'],
+                    $match['player2']['user_id'],
+                    $match['player2']['character_user_id']
+                );
+
+                if ($battleResult['success']) {
+                    // Save pending match data for HTTP polling fallback
+                    $this->matchmakingService->storePendingMatch(
+                        $battleResult['data'],
+                        $match['player1']['user_id'],
+                        $match['player2']['user_id']
+                    );
+
+                    // Broadcast match found event to both players via Reverb
+                    event(new MatchFound($match['player1']['user_id'], $battleResult['data']));
+                    event(new MatchFound($match['player2']['user_id'], $battleResult['data']));
+                }
+            }
+            
+            // Check if this user has a pending match
             $pendingMatch = $this->matchmakingService->pullPendingMatch($validated['user_id']);
 
             if ($pendingMatch) {

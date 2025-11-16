@@ -180,15 +180,19 @@ export interface WebSocketMessage {
     message?: string
 }
 
+// Shape returned by backend for multiplayer battle start (used by MatchFound event)
 export interface MatchFoundData {
     battle_id: string
-    opponent: {
-        id: string
-        name: string
+    player1_id: string
+    player2_id: string
+    player1_character: {
+        character_user_id: string
         character: {
             id: string
             name: string
+            form_id: number
             image_url: string
+            tier: any
         }
         status: {
             hp: number
@@ -198,12 +202,14 @@ export interface MatchFoundData {
         }
         moves: any[]
     }
-    player_character: {
+    player2_character: {
         character_user_id: string
         character: {
             id: string
             name: string
+            form_id: number
             image_url: string
+            tier: any
         }
         status: {
             hp: number

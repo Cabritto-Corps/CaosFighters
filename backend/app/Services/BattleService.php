@@ -16,18 +16,14 @@ class BattleService implements BattleServiceInterface
 
     public function __construct(
         private CharacterService $characterService
-    ) {
-    }
+    ) {}
 
     /**
-     * Start a new battle between player and a bot
+     * Start a new battle between player and a bot (or multiplayer via dedicated method).
+     * This implementation only handles bot battles; multiplayer uses startMultiplayerBattle.
      */
-    public function startBattle(string $userId, string $playerCharacterUserId, bool $isMultiplayer = false): array
+    public function startBattle(string $userId, string $playerCharacterUserId): array
     {
-        if ($isMultiplayer) {
-            return $this->startMultiplayerBattle($userId, $playerCharacterUserId);
-        }
-
         return $this->startBotBattle($userId, $playerCharacterUserId);
     }
 
@@ -49,8 +45,8 @@ class BattleService implements BattleServiceInterface
                 ];
             }
 
-            // Generate a random bot opponent
-            $botCharacter = $this->generateBotOpponent();
+            // Generate a random bot opponent (must be different from player's character)
+            $botCharacter = $this->generateBotOpponent($playerCharacter->character_id);
 
             if (!$botCharacter) {
                 return [
@@ -183,7 +179,7 @@ class BattleService implements BattleServiceInterface
             $battle->update(['battle_log' => $battleLog]);
 
             $nextTurn = $attackerId === $battle->player1_id ? 'enemy' : 'player';
-            
+
             // Get attacker and defender character assignments for HP calculation
             $attackerCharacterId = $attackerId === $battle->player1_id
                 ? $battle->character1_id
@@ -191,14 +187,14 @@ class BattleService implements BattleServiceInterface
             $defenderCharacterId = $attackerId === $battle->player1_id
                 ? $battle->character2_id
                 : $battle->character1_id;
-            
+
             $attackerAssignment = CharacterUser::where('character_id', $attackerCharacterId)->first();
             $defenderAssignment = CharacterUser::where('character_id', $defenderCharacterId)->first();
-            
+
             // Calculate current HP (simplified - in real implementation, track HP in battle state)
             $defenderCurrentHp = $defenderAssignment ? ($defenderAssignment->status['hp'] ?? 100) - $damage : 100 - $damage;
             $defenderCurrentHp = max(0, $defenderCurrentHp);
-            
+
             // Check if battle ended
             $battleEnded = $defenderCurrentHp <= 0;
             $winnerId = $battleEnded ? $attackerId : null;
@@ -323,26 +319,45 @@ class BattleService implements BattleServiceInterface
     }
 
     /**
-     * Generate a bot opponent with random character
+     * Generate a bot opponent with random character.
+     * Optionally exclude a specific character ID to satisfy DB constraints
+     * (e.g. battles must have different characters).
      */
-    private function generateBotOpponent(): ?array
+    private function generateBotOpponent(?string $excludeCharacterId = null): ?array
     {
         try {
-            // Use injected CharacterService to generate random character
-            $result = $this->characterService->getRandomCharacter();
+            $maxAttempts = 5;
+            $attempt = 0;
 
-            if (!$result['success']) {
-                return null;
+            while ($attempt < $maxAttempts) {
+                $attempt++;
+
+                // Use injected CharacterService to generate random character
+                $result = $this->characterService->getRandomCharacter();
+
+                if (!$result['success']) {
+                    return null;
+                }
+
+                $data = $result['data'];
+                $characterId = $data['character']['id'] ?? null;
+
+                // If no exclusion or different character, use it
+                if ($excludeCharacterId === null || $characterId !== $excludeCharacterId) {
+                    return [
+                        'character_id' => $characterId,
+                        'character' => (object) $data['character'],
+                        'status' => $data['status'],
+                        'moves' => $data['moves'],
+                    ];
+                }
             }
 
-            $data = $result['data'];
+            Log::warning('Failed to generate distinct bot opponent after max attempts', [
+                'exclude_character_id' => $excludeCharacterId,
+            ]);
 
-            return [
-                'character_id' => $data['character']['id'],
-                'character' => (object) $data['character'],
-                'status' => $data['status'],
-                'moves' => $data['moves'],
-            ];
+            return null;
         } catch (\Exception $e) {
             Log::error('Failed to generate bot opponent', [
                 'error' => $e->getMessage()

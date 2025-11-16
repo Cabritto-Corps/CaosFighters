@@ -30,12 +30,12 @@ export default function MainScreen() {
     const [isStartingBattle, setIsStartingBattle] = useState(false)
     const [isMultiplayerEnabled, setIsMultiplayerEnabled] = useState(false)
     const [isSearchingOpponent, setIsSearchingOpponent] = useState(false)
-    
+
     // Refs to store intervals and timeouts for cleanup
     const matchmakingPollIntervalRef = useRef<NodeJS.Timeout | null>(null)
     const matchmakingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const websocketUnsubscribeRef = useRef<(() => void) | null>(null)
-    
+
     const [lastBattleResult, setLastBattleResult] = useState({
         victory: true,
         score: 1250,
@@ -220,24 +220,20 @@ export default function MainScreen() {
                 // Join matchmaking queue via HTTP API
                 // Events will come via WebSocket when match is found
                 await apiService.startMultiplayerBattle(currentCharacter.character_user_id)
-                
+
                 // Start polling for matches (fallback if WebSocket events don't work)
-                    const pollInterval = setInterval(async () => {
+                const pollInterval = setInterval(async () => {
                     if (!isSearchingOpponent) {
                         clearInterval(pollInterval)
                         return
                     }
-                    
+
                     // Try to find match via API
                     try {
-                            const statusResponse = await apiService.checkMatchmakingStatus()
-                            if (
-                                statusResponse.success &&
-                                statusResponse.data?.match_found &&
-                                statusResponse.data.battle
-                            ) {
+                        const statusResponse = await apiService.checkMatchmakingStatus()
+                        if (statusResponse.success && statusResponse.data?.match_found && statusResponse.data.battle) {
                             cancelMatchmaking()
-                                navigateToMultiplayerBattle(statusResponse.data.battle)
+                            navigateToMultiplayerBattle(statusResponse.data.battle)
                         }
                     } catch (error) {
                         // Ignore polling errors
@@ -336,13 +332,19 @@ export default function MainScreen() {
     }
 
     const navigateToMultiplayerBattle = (matchData: MatchFoundData) => {
-        if (!currentCharacter) return
+        if (!currentCharacter || !user?.id) return
 
-        // Prepare player moves
+        // Determine perspective (am I player1 or player2?)
+        const isPlayer1 = matchData.player1_id === user.id
+        const myCharacter = isPlayer1 ? matchData.player1_character : matchData.player2_character
+        const enemyCharacter = isPlayer1 ? matchData.player2_character : matchData.player1_character
+        const enemyUserId = isPlayer1 ? matchData.player2_id : matchData.player1_id
+
+        // Prepare player moves (from backend character for consistency)
         const playerMoves =
-            currentCharacter.moves?.map((m) => ({
-                id: m.move?.id || (m as any).id,
-                name: m.move?.name || (m as any).name,
+            myCharacter.moves?.map((m: any) => ({
+                id: m.move?.id || m.id,
+                name: m.move?.name || m.name,
                 power: m.move?.info?.power,
                 accuracy: m.move?.info?.accuracy,
                 effect_chance: m.move?.info?.effect_chance,
@@ -352,15 +354,15 @@ export default function MainScreen() {
 
         // Player stats
         const playerStats = {
-            hp: Number(matchData.player_character.status.hp) || 100,
-            strength: Number(matchData.player_character.status.strength) || 100,
-            defense: Number(matchData.player_character.status.defense) || 100,
-            agility: Number(matchData.player_character.status.agility) || 100,
+            hp: Number(myCharacter.status.hp) || 100,
+            strength: Number(myCharacter.status.strength) || 100,
+            defense: Number(myCharacter.status.defense) || 100,
+            agility: Number(myCharacter.status.agility) || 100,
         }
 
         // Opponent moves
         const enemyMoves =
-            matchData.opponent.moves?.map((m: any) => ({
+            enemyCharacter.moves?.map((m: any) => ({
                 id: m.move?.id || m.id,
                 name: m.move?.name || m.name,
                 power: m.move?.info?.power,
@@ -368,10 +370,10 @@ export default function MainScreen() {
 
         // Opponent stats
         const enemyStats = {
-            hp: Number(matchData.opponent.status.hp) || 100,
-            strength: Number(matchData.opponent.status.strength) || 100,
-            defense: Number(matchData.opponent.status.defense) || 100,
-            agility: Number(matchData.opponent.status.agility) || 100,
+            hp: Number(enemyCharacter.status.hp) || 100,
+            strength: Number(enemyCharacter.status.strength) || 100,
+            defense: Number(enemyCharacter.status.defense) || 100,
+            agility: Number(enemyCharacter.status.agility) || 100,
         }
 
         router.push({
@@ -380,15 +382,15 @@ export default function MainScreen() {
                 battleId: matchData.battle_id,
                 battleMode: 'multiplayer',
                 // Player
-                playerId: user?.id || '',
-                playerName: matchData.player_character.character.name,
-                playerIcon: matchData.player_character.character.image_url,
+                playerId: user.id,
+                playerName: myCharacter.character.name,
+                playerIcon: myCharacter.character.image_url,
                 playerStats: JSON.stringify(playerStats),
                 playerMoves: JSON.stringify(playerMoves),
                 // Opponent
-                enemyId: matchData.opponent.id,
-                enemyName: matchData.opponent.character.name,
-                enemyIcon: matchData.opponent.character.image_url,
+                enemyId: enemyUserId,
+                enemyName: enemyCharacter.character.name,
+                enemyIcon: enemyCharacter.character.image_url,
                 enemyStats: JSON.stringify(enemyStats),
                 enemyMoves: JSON.stringify(enemyMoves),
             },
@@ -817,7 +819,9 @@ export default function MainScreen() {
                                 onPress={handleStartBattle}
                                 variant="primary"
                                 size="large"
-                                disabled={!currentCharacter || characterLoading || (isStartingBattle && !isSearchingOpponent)}
+                                disabled={
+                                    !currentCharacter || characterLoading || (isStartingBattle && !isSearchingOpponent)
+                                }
                             />
                         )}
                     </View>

@@ -12,16 +12,16 @@ const isDevelopment = __DEV__
 const getBackendUrl = () => {
     // Check for environment variable first (from .env)
     const envApiUrl = Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL
-    
+
     if (envApiUrl) {
         return envApiUrl
     }
-    
+
     if (isDevelopment) {
         // Choose one of the following options:
 
         // Option 1: For tunnel development (recommended when using Expo tunnel)
-        const tunnelUrl = 'https://giselle-snippier-coralee.ngrok-free.dev' // Your ngrok URL
+        const tunnelUrl = 'https://teodora-nirvanic-nakisha.ngrok-free.dev/' // Your ngrok URL
         return `${tunnelUrl}/backend`
 
         // Option 2: For LAN mode (uncomment the line below and comment the lines above)

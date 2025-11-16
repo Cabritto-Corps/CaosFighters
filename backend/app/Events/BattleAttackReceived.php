@@ -2,13 +2,13 @@
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\Channel;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class BattleAttackReceived implements ShouldBroadcast
+class BattleAttackReceived implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -31,8 +31,10 @@ class BattleAttackReceived implements ShouldBroadcast
      */
     public function broadcastOn(): array
     {
+        // Private battle channel; clients subscribe to "private-battle.{battleId}"
+        // which maps to PrivateChannel('battle.{battleId}').
         return [
-            new Channel('private-battle.' . $this->battleId),
+            new PrivateChannel('battle.' . $this->battleId),
         ];
     }
 

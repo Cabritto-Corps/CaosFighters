@@ -3,10 +3,12 @@
  * Manages real-time communication for multiplayer battles
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import Constants from 'expo-constants'
 import Pusher from 'pusher-js'
 import { API_CONFIG } from '../config/api'
-import Constants from 'expo-constants'
-import type { WebSocketMessage, MatchFoundData, BattleAttackWebSocketData } from '../types/battle'
+import type { WebSocketMessage } from '../types/battle'
+import { STORAGE_KEYS } from './api'
 
 type WebSocketStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
@@ -30,7 +32,7 @@ class WebSocketService {
             (Constants.expoConfig?.extra as any)?.reverbHost || process.env.EXPO_PUBLIC_REVERB_HOST
         const envPort =
             (Constants.expoConfig?.extra as any)?.reverbPort || process.env.EXPO_PUBLIC_REVERB_PORT
-        
+
         if (envKey && envHost && envPort) {
             return {
                 host: envHost,
@@ -100,6 +102,9 @@ class WebSocketService {
 
             console.log('Connecting to Reverb WebSocket:', wsHost)
 
+            // Get auth token for private channel authentication
+            const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN)
+
             // For Laravel Reverb, we use wsHost/wsPort
             // Pusher requires cluster to be set, but wsHost takes precedence
             this.pusher = new Pusher(config.key, {
@@ -113,7 +118,9 @@ class WebSocketService {
                 authEndpoint: `${API_CONFIG.BASE_URL}/broadcasting/auth`,
                 auth: {
                     headers: {
-                        // Add auth headers if needed
+                        ...(token && { Authorization: `Bearer ${token}` }),
+                        'Content-Type': 'application/json',
+                        Accept: 'application/json',
                     },
                 },
             })

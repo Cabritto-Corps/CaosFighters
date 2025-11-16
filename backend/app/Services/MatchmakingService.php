@@ -151,6 +151,64 @@ class MatchmakingService
     }
 
     /**
+     * Process all matches in the queue
+     * Returns array of matches found: [['player1' => ..., 'player2' => ...], ...]
+     */
+    public function processMatches(): array
+    {
+        try {
+            $queue = $this->getQueue();
+            $this->cleanExpiredEntries($queue);
+            
+            $initialQueueSize = count($queue);
+            $matches = [];
+            
+            Log::info('Processing matches', [
+                'queue_size' => $initialQueueSize,
+            ]);
+            
+            // Process matches while there are at least 2 players
+            while (count($queue) >= 2) {
+                $player1 = $queue[0];
+                $player2 = $queue[1];
+                
+                // Remove both players from queue
+                array_splice($queue, 0, 2);
+                
+                $matches[] = [
+                    'player1' => $player1,
+                    'player2' => $player2,
+                ];
+                
+                Log::info('Match processed', [
+                    'player1_id' => $player1['user_id'],
+                    'player2_id' => $player2['user_id'],
+                    'remaining_queue_size' => count($queue),
+                ]);
+            }
+            
+            // Save updated queue
+            $this->saveQueue($queue);
+            
+            if (count($matches) > 0) {
+                Log::info('Matches processed successfully', [
+                    'matches_count' => count($matches),
+                    'remaining_queue_size' => count($queue),
+                ]);
+            }
+            
+            return $matches;
+        } catch (\Exception $e) {
+            Log::error('Failed to process matches', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return [];
+        }
+    }
+
+    /**
      * Get current queue
      */
     private function getQueue(): array
