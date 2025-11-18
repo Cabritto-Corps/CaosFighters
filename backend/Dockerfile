@@ -30,6 +30,7 @@ RUN apt-get update \
     git \
     unzip \
     libpq-dev \
+    bash \
     && docker-php-ext-install pdo pdo_pgsql pcntl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -59,6 +60,6 @@ ENV APP_PORT=8000
 
 EXPOSE 8000
 
-CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${APP_PORT}
+CMD ["sh", "-c", "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${APP_PORT}"]
 
 
