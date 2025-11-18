@@ -217,9 +217,25 @@ export default function MainScreen() {
 
                 websocketUnsubscribeRef.current = unsubscribe
 
-                // Join matchmaking queue via HTTP API
-                // Events will come via WebSocket when match is found
-                await apiService.startMultiplayerBattle(currentCharacter.character_user_id)
+                // Join matchmaking queue
+                // If using custom WebSocket server, send via WebSocket
+                // Otherwise, use HTTP API (Reverb will broadcast events)
+                try {
+                    // Wait a bit for WebSocket to be fully connected
+                    await new Promise((resolve) => setTimeout(resolve, 500))
+                    
+                    if (websocketService.isConnected()) {
+                        // Try WebSocket first (for custom server)
+                        websocketService.joinMatchmaking(currentCharacter.character_user_id)
+                    } else {
+                        // Fallback to HTTP API
+                        await apiService.startMultiplayerBattle(currentCharacter.character_user_id)
+                    }
+                } catch (error) {
+                    console.error('Error joining matchmaking:', error)
+                    // Fallback to HTTP API
+                    await apiService.startMultiplayerBattle(currentCharacter.character_user_id)
+                }
 
                 // Start polling for matches (fallback if WebSocket events don't work)
                 const pollInterval = setInterval(async () => {

@@ -1,5 +1,5 @@
-import { WebSocketServer, WebSocket } from 'ws'
 import * as http from 'http'
+import { WebSocket, WebSocketServer } from 'ws'
 
 // Get backend URL from environment or use default
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000'
@@ -18,8 +18,10 @@ const clients = new Map<WebSocket, Client>()
 const server = http.createServer()
 const wss = new WebSocketServer({ server })
 
-wss.on('connection', (ws: WebSocket) => {
-    console.log('New WebSocket connection')
+wss.on('connection', (ws: WebSocket, req) => {
+    const clientIp = req.socket.remoteAddress
+    console.log(`[WEBSOCKET] New WebSocket connection from ${clientIp}`)
+    console.log(`[WEBSOCKET] Total clients connected: ${clients.size + 1}`)
 
     const client: Client = {
         ws,
@@ -34,15 +36,17 @@ wss.on('connection', (ws: WebSocket) => {
     ws.on('message', async (message: string) => {
         try {
             const data = JSON.parse(message.toString())
+            console.log(`[WEBSOCKET] Received message type: ${data.type} from user: ${client.userId || 'unauthenticated'}`)
             await handleMessage(client, data)
         } catch (error) {
-            console.error('Error handling message:', error)
+            console.error('[WEBSOCKET] Error handling message:', error)
             sendError(ws, 'Invalid message format')
         }
     })
 
     ws.on('close', () => {
-        console.log('WebSocket connection closed')
+        console.log(`[WEBSOCKET] Connection closed for user: ${client.userId || 'unauthenticated'}`)
+        console.log(`[WEBSOCKET] Total clients remaining: ${clients.size - 1}`)
         // Clear matchmaking interval if exists
         if (client.matchmakingInterval) {
             clearInterval(client.matchmakingInterval)
@@ -51,28 +55,33 @@ wss.on('connection', (ws: WebSocket) => {
     })
 
     ws.on('error', (error) => {
-        console.error('WebSocket error:', error)
+        console.error('[WEBSOCKET] WebSocket error:', error)
         clients.delete(ws)
     })
 })
 
 async function handleMessage(client: Client, data: any) {
+    console.log(`[WEBSOCKET] Handling message type: ${data.type}`)
     switch (data.type) {
         case 'auth':
             client.userId = data.data?.user_id || null
+            console.log(`[WEBSOCKET] User authenticated: ${client.userId}`)
             send(client.ws, { type: 'auth_success', message: 'Authenticated' })
             break
 
         case 'join_matchmaking':
             if (!client.userId || !data.data?.character_user_id) {
+                console.log(`[WEBSOCKET] Join matchmaking failed: missing user_id or character_user_id`)
                 sendError(client.ws, 'User ID and character ID required')
                 return
             }
 
             client.characterUserId = data.data.character_user_id
+            console.log(`[WEBSOCKET] User ${client.userId} joining matchmaking with character ${client.characterUserId}`)
 
             // Call Laravel API to join matchmaking
             try {
+                console.log(`[WEBSOCKET] Calling backend: ${BACKEND_URL}/backend/battles/matchmaking/join`)
                 const response = await fetch(`${BACKEND_URL}/backend/battles/matchmaking/join`, {
                     method: 'POST',
                     headers: {
@@ -85,11 +94,17 @@ async function handleMessage(client: Client, data: any) {
                 })
 
                 const result = await response.json()
+                console.log(`[WEBSOCKET] Matchmaking response for user ${client.userId}:`, {
+                    success: result.success,
+                    match_found: result.data?.match_found,
+                    battle_id: result.data?.battle?.battle_id,
+                })
 
                 if (result.success && result.data?.match_found && result.data?.battle) {
                     // Match found! Notify client
                     const battleData = result.data.battle
                     client.battleId = battleData.battle_id
+                    console.log(`[WEBSOCKET] Match found! Battle ID: ${battleData.battle_id}, Player1: ${battleData.player1_id}, Player2: ${battleData.player2_id}`)
 
                     // Determine which player is which
                     const isPlayer1 = battleData.player1_id === client.userId
@@ -153,6 +168,7 @@ async function handleMessage(client: Client, data: any) {
                         })
                     }
                 } else {
+                    console.log(`[WEBSOCKET] User ${client.userId} queued for matchmaking, position: ${result.data?.queue_position || 1}`)
                     send(client.ws, {
                         type: 'matchmaking_queued',
                         message: 'Waiting for opponent...',
@@ -164,6 +180,7 @@ async function handleMessage(client: Client, data: any) {
                         clearInterval(client.matchmakingInterval)
                     }
 
+                    console.log(`[WEBSOCKET] Starting polling interval for user ${client.userId}`)
                     client.matchmakingInterval = setInterval(async () => {
                         if (client.battleId) {
                             // Already matched, stop polling
@@ -190,11 +207,16 @@ async function handleMessage(client: Client, data: any) {
                             )
 
                             const matchResult = await matchResponse.json()
+                            console.log(`[WEBSOCKET] Polling result for user ${client.userId}:`, {
+                                success: matchResult.success,
+                                match_found: matchResult.data?.match_found,
+                            })
 
                             if (matchResult.success && matchResult.data?.match_found && matchResult.data?.battle) {
                                 // Match found!
                                 const battleData = matchResult.data.battle
                                 client.battleId = battleData.battle_id
+                                console.log(`[WEBSOCKET] Match found via polling! Battle ID: ${battleData.battle_id}`)
 
                                 if (client.matchmakingInterval) {
                                     clearInterval(client.matchmakingInterval)
@@ -391,7 +413,10 @@ function sendError(ws: WebSocket, message: string) {
     send(ws, { type: 'error', message })
 }
 
-server.listen(PORT, () => {
-    console.log(`WebSocket server running on ws://localhost:${PORT}`)
-    console.log(`Backend URL: ${BACKEND_URL}`)
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`[WEBSOCKET] ========================================`)
+    console.log(`[WEBSOCKET] WebSocket server started successfully`)
+    console.log(`[WEBSOCKET] Listening on port ${PORT}`)
+    console.log(`[WEBSOCKET] Backend URL: ${BACKEND_URL}`)
+    console.log(`[WEBSOCKET] ========================================`)
 })

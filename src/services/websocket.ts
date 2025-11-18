@@ -1,5 +1,5 @@
 /**
- * WebSocket Service using Laravel Reverb (Pusher-compatible)
+ * WebSocket Service - Supports both Laravel Reverb (Pusher) and custom WebSocket server
  * Manages real-time communication for multiplayer battles
  */
 
@@ -16,10 +16,41 @@ type MessageHandler = (message: WebSocketMessage) => void
 
 class WebSocketService {
     private pusher: Pusher | null = null
+    private ws: WebSocket | null = null // Native WebSocket for custom server
+    private useCustomWebSocket: boolean = false
     private status: WebSocketStatus = 'disconnected'
     private messageHandlers: Set<MessageHandler> = new Set()
     private userId: string | null = null
-    private channels: Map<string, Pusher.Channel> = new Map()
+    private channels: Map<string, any> = new Map() // Pusher.Channel type
+    private currentBattleId: string | null = null
+
+    /**
+     * Get WebSocket server URL (custom or Reverb)
+     */
+    private getWebSocketUrl(): string | null {
+        // Check for custom WebSocket server URL in production
+        const customWsUrl =
+            (Constants.expoConfig?.extra as any)?.websocketUrl ||
+            process.env.EXPO_PUBLIC_WEBSOCKET_URL
+
+        if (customWsUrl) {
+            this.useCustomWebSocket = true
+            return customWsUrl.startsWith('ws://') || customWsUrl.startsWith('wss://')
+                ? customWsUrl
+                : `wss://${customWsUrl}`
+        }
+
+        // Check if we should use custom WebSocket based on API URL
+        const baseUrl = API_CONFIG.BASE_URL
+        if (!__DEV__ && baseUrl.includes('railway.app')) {
+            // In production with Railway, use custom WebSocket server
+            const wsHost = 'websocket-production-213e.up.railway.app'
+            this.useCustomWebSocket = true
+            return `wss://${wsHost}`
+        }
+
+        return null
+    }
 
     /**
      * Get Reverb/Pusher configuration
@@ -86,7 +117,7 @@ class WebSocketService {
     }
 
     /**
-     * Connect to Reverb WebSocket server
+     * Connect to WebSocket server (custom or Reverb)
      */
     async connect(userId: string): Promise<void> {
         if (this.status === 'connected' || this.status === 'connecting') {
@@ -96,11 +127,113 @@ class WebSocketService {
         this.userId = userId
         this.status = 'connecting'
 
+        // Check if we should use custom WebSocket server
+        const customWsUrl = this.getWebSocketUrl()
+        if (customWsUrl && this.useCustomWebSocket) {
+            return this.connectCustomWebSocket(userId, customWsUrl)
+        }
+
+        // Otherwise use Reverb/Pusher
+        return this.connectReverb(userId)
+    }
+
+    /**
+     * Connect to custom WebSocket server
+     */
+    private async connectCustomWebSocket(userId: string, wsUrl: string): Promise<void> {
+        try {
+            console.log('[WEBSOCKET] Connecting to custom WebSocket server:', wsUrl)
+
+            this.ws = new WebSocket(wsUrl)
+
+            this.ws.onopen = () => {
+                console.log('[WEBSOCKET] Custom WebSocket connected')
+                this.status = 'connected'
+
+                // Authenticate with user ID
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(
+                        JSON.stringify({
+                            type: 'auth',
+                            data: {
+                                user_id: userId,
+                            },
+                        })
+                    )
+                }
+            }
+
+            this.ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data)
+                    console.log('[WEBSOCKET] Received message:', message.type)
+
+                    if (message.type === 'auth_success') {
+                        console.log('[WEBSOCKET] Authentication successful')
+                        return
+                    }
+
+                    // Handle matchmaking and battle messages
+                    if (message.type === 'match_found') {
+                        this.handleMessage({
+                            type: 'match_found',
+                            data: message.data,
+                            battle_id: message.data?.battle_id,
+                        })
+                    } else if (message.type === 'battle_attack') {
+                        this.handleMessage({
+                            type: 'battle_attack',
+                            data: message.data,
+                            battle_id: message.battle_id,
+                        })
+                    } else if (message.type === 'battle_state_update') {
+                        this.handleMessage({
+                            type: 'battle_state_update',
+                            data: message.data,
+                            battle_id: message.battle_id,
+                        })
+                    } else if (message.type === 'battle_end') {
+                        this.handleMessage({
+                            type: 'battle_end',
+                            data: message.data,
+                            battle_id: message.battle_id,
+                        })
+                    } else if (message.type === 'matchmaking_queued') {
+                        console.log('[WEBSOCKET] Matchmaking queued:', message.queue_position)
+                    } else if (message.type === 'error') {
+                        console.error('[WEBSOCKET] Error from server:', message.message)
+                    }
+                } catch (error) {
+                    console.error('[WEBSOCKET] Error parsing message:', error)
+                }
+            }
+
+            this.ws.onerror = (error) => {
+                console.error('[WEBSOCKET] Custom WebSocket error:', error)
+                this.status = 'error'
+            }
+
+            this.ws.onclose = () => {
+                console.log('[WEBSOCKET] Custom WebSocket disconnected')
+                this.status = 'disconnected'
+                this.ws = null
+            }
+        } catch (error) {
+            console.error('[WEBSOCKET] Failed to connect to custom WebSocket:', error)
+            this.status = 'error'
+            throw error
+        }
+    }
+
+    /**
+     * Connect to Reverb WebSocket server
+     */
+    private async connectReverb(userId: string): Promise<void> {
         try {
             const config = this.getReverbConfig()
             const wsHost = config.port === 443 ? `wss://${config.host}` : `ws://${config.host}:${config.port}`
 
-            console.log('Connecting to Reverb WebSocket:', wsHost)
+            console.log('[WEBSOCKET] Connecting to Reverb WebSocket:', wsHost)
 
             // Get auth token for private channel authentication
             const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN)
@@ -126,17 +259,17 @@ class WebSocketService {
             })
 
             this.pusher.connection.bind('connected', () => {
-                console.log('Reverb WebSocket connected')
+                console.log('[WEBSOCKET] Reverb WebSocket connected')
                 this.status = 'connected'
             })
 
             this.pusher.connection.bind('disconnected', () => {
-                console.log('Reverb WebSocket disconnected')
+                console.log('[WEBSOCKET] Reverb WebSocket disconnected')
                 this.status = 'disconnected'
             })
 
             this.pusher.connection.bind('error', (error: any) => {
-                console.error('Reverb WebSocket error:', error)
+                console.error('[WEBSOCKET] Reverb WebSocket error:', error)
                 this.status = 'error'
             })
 
@@ -146,7 +279,7 @@ class WebSocketService {
                 this.channels.set(`private-user.${userId}`, userChannel)
 
                 userChannel.bind('match.found', (data: any) => {
-                    console.log('Match found event received:', data)
+                    console.log('[WEBSOCKET] Match found event received:', data)
                     this.handleMessage({
                         type: 'match_found',
                         data: data.data,
@@ -155,17 +288,20 @@ class WebSocketService {
                 })
             }
         } catch (error) {
-            console.error('Failed to connect to Reverb:', error)
+            console.error('[WEBSOCKET] Failed to connect to Reverb:', error)
             this.status = 'error'
             throw error
         }
     }
 
     /**
-     * Disconnect from Reverb WebSocket server
+     * Disconnect from WebSocket server
      */
     disconnect(): void {
-        if (this.pusher) {
+        if (this.useCustomWebSocket && this.ws) {
+            this.ws.close()
+            this.ws = null
+        } else if (this.pusher) {
             this.channels.forEach((channel) => {
                 this.pusher?.unsubscribe(channel.name)
             })
@@ -176,14 +312,23 @@ class WebSocketService {
 
         this.status = 'disconnected'
         this.userId = null
+        this.currentBattleId = null
     }
 
     /**
      * Subscribe to battle channel
      */
     subscribeToBattle(battleId: string): void {
+        this.currentBattleId = battleId
+
+        if (this.useCustomWebSocket) {
+            // Custom WebSocket server handles battle messages automatically
+            console.log('[WEBSOCKET] Battle subscription noted for custom WebSocket:', battleId)
+            return
+        }
+
         if (!this.pusher || this.status !== 'connected') {
-            console.warn('Pusher not connected, cannot subscribe to battle')
+            console.warn('[WEBSOCKET] Pusher not connected, cannot subscribe to battle')
             return
         }
 
@@ -196,7 +341,7 @@ class WebSocketService {
         this.channels.set(channelName, battleChannel)
 
         battleChannel.bind('battle.attack', (data: any) => {
-            console.log('Battle attack event received:', data)
+            console.log('[WEBSOCKET] Battle attack event received:', data)
             this.handleMessage({
                 type: 'battle_attack',
                 data: data.data,
@@ -205,7 +350,7 @@ class WebSocketService {
         })
 
         battleChannel.bind('battle.state_update', (data: any) => {
-            console.log('Battle state update received:', data)
+            console.log('[WEBSOCKET] Battle state update received:', data)
             this.handleMessage({
                 type: 'battle_state_update',
                 data: data.data,
@@ -214,7 +359,7 @@ class WebSocketService {
         })
 
         battleChannel.bind('battle.end', (data: any) => {
-            console.log('Battle end event received:', data)
+            console.log('[WEBSOCKET] Battle end event received:', data)
             this.handleMessage({
                 type: 'battle_end',
                 data: data.data,
@@ -259,29 +404,65 @@ class WebSocketService {
     }
 
     /**
-     * Join matchmaking queue (via HTTP API, not WebSocket)
+     * Join matchmaking queue
      */
     joinMatchmaking(characterUserId: string): void {
-        // Matchmaking is handled via HTTP API
-        // Events will be received via WebSocket when match is found
-        console.log('Matchmaking request sent via API')
+        if (this.useCustomWebSocket && this.ws && this.ws.readyState === WebSocket.OPEN && this.userId) {
+            // Send join matchmaking message to custom WebSocket server
+            console.log('[WEBSOCKET] Sending join_matchmaking to custom WebSocket server')
+            this.ws.send(
+                JSON.stringify({
+                    type: 'join_matchmaking',
+                    data: {
+                        character_user_id: characterUserId,
+                    },
+                })
+            )
+        } else {
+            // Matchmaking is handled via HTTP API for Reverb
+            // Events will be received via WebSocket when match is found
+            console.log('[WEBSOCKET] Matchmaking request sent via API')
+        }
     }
 
     /**
-     * Leave matchmaking queue (via HTTP API)
+     * Leave matchmaking queue
      */
     leaveMatchmaking(): void {
-        // Handled via HTTP API
-        console.log('Leave matchmaking request sent via API')
+        if (this.useCustomWebSocket && this.ws && this.ws.readyState === WebSocket.OPEN) {
+            // Send leave matchmaking message to custom WebSocket server
+            console.log('[WEBSOCKET] Sending leave_matchmaking to custom WebSocket server')
+            this.ws.send(
+                JSON.stringify({
+                    type: 'leave_matchmaking',
+                })
+            )
+        } else {
+            // Handled via HTTP API for Reverb
+            console.log('[WEBSOCKET] Leave matchmaking request sent via API')
+        }
     }
 
     /**
-     * Send attack in battle (via HTTP API, broadcast via Reverb)
+     * Send attack in battle
      */
     sendAttack(battleId: string, moveId: string): void {
-        // Attack is sent via HTTP API
-        // The backend will broadcast the result via Reverb
-        console.log('Attack sent via API, will be broadcast via Reverb')
+        if (this.useCustomWebSocket && this.ws && this.ws.readyState === WebSocket.OPEN) {
+            // Send attack message to custom WebSocket server
+            console.log('[WEBSOCKET] Sending battle_attack to custom WebSocket server')
+            this.ws.send(
+                JSON.stringify({
+                    type: 'battle_attack',
+                    data: {
+                        move_id: moveId,
+                    },
+                })
+            )
+        } else {
+            // Attack is sent via HTTP API for Reverb
+            // The backend will broadcast the result via Reverb
+            console.log('[WEBSOCKET] Attack sent via API, will be broadcast via Reverb')
+        }
     }
 
     /**
@@ -295,6 +476,9 @@ class WebSocketService {
      * Check if connected
      */
     isConnected(): boolean {
+        if (this.useCustomWebSocket) {
+            return this.status === 'connected' && this.ws?.readyState === WebSocket.OPEN
+        }
         return this.status === 'connected' && this.pusher?.connection.state === 'connected'
     }
 }
