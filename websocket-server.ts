@@ -34,7 +34,7 @@ server.on('request', (req, res) => {
     console.log(`[WEBSOCKET] This is a WebSocket server, HTTP requests will be rejected`)
 })
 
-const wss = new WebSocketServer({ 
+const wss = new WebSocketServer({
     server,
     perMessageDeflate: false, // Disable compression for better compatibility
 })
@@ -121,13 +121,22 @@ async function handleMessage(client: Client, data: any) {
                 })
 
                 const result = await response.json()
-                console.log(`[WEBSOCKET] Matchmaking response for user ${client.userId}:`, {
-                    success: result.success,
-                    match_found: result.data?.match_found,
-                    battle_id: result.data?.battle?.battle_id,
-                })
+                console.log(`[WEBSOCKET] ========================================`)
+                console.log(`[WEBSOCKET] Full matchmaking response for user ${client.userId}:`)
+                console.log(`[WEBSOCKET]`, JSON.stringify(result, null, 2))
+                console.log(`[WEBSOCKET] ========================================`)
 
-                if (result.success && result.data?.match_found && result.data?.battle) {
+                // Check if match was found - the response structure differs:
+                // - Match found: { success: true, data: { match_found: true, battle: {...} } }
+                // - No match: { success: true, data: { success: true, queue_position: N } }
+                const hasMatch = result.success &&
+                    result.data &&
+                    typeof result.data === 'object' &&
+                    'match_found' in result.data &&
+                    result.data.match_found === true &&
+                    result.data.battle
+
+                if (hasMatch) {
                     // Match found! Notify client
                     const battleData = result.data.battle
                     client.battleId = battleData.battle_id
@@ -150,6 +159,7 @@ async function handleMessage(client: Client, data: any) {
 
                     if (opponentClient) {
                         opponentClient.battleId = battleData.battle_id
+                        console.log(`[WEBSOCKET] Opponent ${opponentId} is connected, notifying both players`)
 
                         // Notify both players
                         send(client.ws, {
@@ -191,6 +201,30 @@ async function handleMessage(client: Client, data: any) {
                                     moves: opponentCharacter.moves,
                                 },
                                 turn: isPlayer1 ? 'enemy' : 'player',
+                            },
+                        })
+                    } else {
+                        console.log(`[WEBSOCKET] Opponent ${opponentId} is NOT connected, only notifying current player`)
+                        // Opponent not connected yet, but notify current player anyway
+                        // They might connect later or the match will be handled via HTTP polling
+                        send(client.ws, {
+                            type: 'match_found',
+                            data: {
+                                battle_id: battleData.battle_id,
+                                opponent: {
+                                    id: opponentId,
+                                    name: opponentCharacter.character.name,
+                                    character: opponentCharacter.character,
+                                    status: opponentCharacter.status,
+                                    moves: opponentCharacter.moves,
+                                },
+                                player_character: {
+                                    character_user_id: playerCharacter.character_user_id,
+                                    character: playerCharacter.character,
+                                    status: playerCharacter.status,
+                                    moves: playerCharacter.moves,
+                                },
+                                turn: isPlayer1 ? 'player' : 'enemy',
                             },
                         })
                     }
@@ -237,9 +271,24 @@ async function handleMessage(client: Client, data: any) {
                             console.log(`[WEBSOCKET] Polling result for user ${client.userId}:`, {
                                 success: matchResult.success,
                                 match_found: matchResult.data?.match_found,
+                                has_battle: !!matchResult.data?.battle,
+                                battle_id: matchResult.data?.battle?.battle_id,
                             })
 
-                            if (matchResult.success && matchResult.data?.match_found && matchResult.data?.battle) {
+                            // Log full response if match found
+                            if (matchResult.success && matchResult.data?.match_found) {
+                                console.log(`[WEBSOCKET] Full polling response:`, JSON.stringify(matchResult, null, 2))
+                            }
+
+                            // Check if match was found
+                            const hasMatch = matchResult.success &&
+                                matchResult.data &&
+                                typeof matchResult.data === 'object' &&
+                                'match_found' in matchResult.data &&
+                                matchResult.data.match_found === true &&
+                                matchResult.data.battle
+
+                            if (hasMatch) {
                                 // Match found!
                                 const battleData = matchResult.data.battle
                                 client.battleId = battleData.battle_id
@@ -271,6 +320,7 @@ async function handleMessage(client: Client, data: any) {
                                         clearInterval(opponentClient.matchmakingInterval)
                                         opponentClient.matchmakingInterval = null
                                     }
+                                    console.log(`[WEBSOCKET] Opponent ${opponentId} is connected via polling, notifying both players`)
 
                                     // Notify both players
                                     send(client.ws, {
@@ -312,6 +362,29 @@ async function handleMessage(client: Client, data: any) {
                                                 moves: opponentCharacter.moves,
                                             },
                                             turn: isPlayer1 ? 'enemy' : 'player',
+                                        },
+                                    })
+                                } else {
+                                    console.log(`[WEBSOCKET] Opponent ${opponentId} is NOT connected via polling, only notifying current player`)
+                                    // Opponent not connected, but notify current player
+                                    send(client.ws, {
+                                        type: 'match_found',
+                                        data: {
+                                            battle_id: battleData.battle_id,
+                                            opponent: {
+                                                id: opponentId,
+                                                name: opponentCharacter.character.name,
+                                                character: opponentCharacter.character,
+                                                status: opponentCharacter.status,
+                                                moves: opponentCharacter.moves,
+                                            },
+                                            player_character: {
+                                                character_user_id: playerCharacter.character_user_id,
+                                                character: playerCharacter.character,
+                                                status: playerCharacter.status,
+                                                moves: playerCharacter.moves,
+                                            },
+                                            turn: isPlayer1 ? 'player' : 'enemy',
                                         },
                                     })
                                 }

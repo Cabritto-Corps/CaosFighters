@@ -45,7 +45,7 @@ class WebSocketService {
         // Even in dev mode, if API is pointing to Railway, use custom WebSocket
         const baseUrl = API_CONFIG.BASE_URL
         console.log('[WEBSOCKET] Checking API URL for Railway:', baseUrl)
-        
+
         if (baseUrl.includes('railway.app')) {
             // API is on Railway, use custom WebSocket server
             const wsHost = 'websocket-production-213e.up.railway.app'
@@ -137,7 +137,7 @@ class WebSocketService {
         // Check if we should use custom WebSocket server
         const customWsUrl = this.getWebSocketUrl()
         console.log('[WEBSOCKET] WebSocket URL result:', customWsUrl, 'useCustom:', this.useCustomWebSocket)
-        
+
         if (customWsUrl && this.useCustomWebSocket) {
             console.log('[WEBSOCKET] Connecting to custom WebSocket server')
             return this.connectCustomWebSocket(userId, customWsUrl)
