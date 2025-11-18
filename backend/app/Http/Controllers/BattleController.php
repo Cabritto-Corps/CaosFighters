@@ -192,6 +192,14 @@ class BattleController extends Controller
 
             // If this player was matched, start the battle
             if ($playerMatch) {
+                error_log(sprintf(
+                    '[MATCHMAKING] Calling startMultiplayerBattle with - Player1 ID: %s, Player1 Character: %s, Player2 ID: %s, Player2 Character: %s',
+                    $validated['user_id'],
+                    $validated['character_user_id'],
+                    $playerMatch['opponent_user_id'],
+                    $playerMatch['opponent_character_user_id']
+                ));
+
                 $battleResult = $this->battleService->startMultiplayerBattle(
                     $validated['user_id'],
                     $validated['character_user_id'],

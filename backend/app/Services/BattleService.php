@@ -470,6 +470,14 @@ class BattleService implements BattleServiceInterface
         string $player2CharacterUserId
     ): array {
         try {
+            error_log(sprintf(
+                '[BATTLE] startMultiplayerBattle called - Player1 ID: %s, Player1 Character: %s, Player2 ID: %s, Player2 Character: %s',
+                $player1Id,
+                $player1CharacterUserId,
+                $player2Id,
+                $player2CharacterUserId
+            ));
+
             // Get both players' character assignments
             $player1Character = CharacterUser::with(['character', 'user'])
                 ->find($player1CharacterUserId);
@@ -477,7 +485,27 @@ class BattleService implements BattleServiceInterface
             $player2Character = CharacterUser::with(['character', 'user'])
                 ->find($player2CharacterUserId);
 
+            error_log(sprintf(
+                '[BATTLE] Character lookup - Player1 Character found: %s, belongs to user: %s, expected user: %s',
+                $player1Character ? 'yes' : 'no',
+                $player1Character ? $player1Character->user_id : 'N/A',
+                $player1Id
+            ));
+
+            error_log(sprintf(
+                '[BATTLE] Character lookup - Player2 Character found: %s, belongs to user: %s, expected user: %s',
+                $player2Character ? 'yes' : 'no',
+                $player2Character ? $player2Character->user_id : 'N/A',
+                $player2Id
+            ));
+
             if (!$player1Character || $player1Character->user_id !== $player1Id) {
+                error_log(sprintf(
+                    '[BATTLE] ERROR: Invalid player 1 character assignment - Character found: %s, Character user_id: %s, Expected user_id: %s',
+                    $player1Character ? 'yes' : 'no',
+                    $player1Character ? $player1Character->user_id : 'N/A',
+                    $player1Id
+                ));
                 return [
                     'success' => false,
                     'message' => 'Invalid player 1 character assignment',
@@ -486,6 +514,12 @@ class BattleService implements BattleServiceInterface
             }
 
             if (!$player2Character || $player2Character->user_id !== $player2Id) {
+                error_log(sprintf(
+                    '[BATTLE] ERROR: Invalid player 2 character assignment - Character found: %s, Character user_id: %s, Expected user_id: %s',
+                    $player2Character ? 'yes' : 'no',
+                    $player2Character ? $player2Character->user_id : 'N/A',
+                    $player2Id
+                ));
                 return [
                     'success' => false,
                     'message' => 'Invalid player 2 character assignment',

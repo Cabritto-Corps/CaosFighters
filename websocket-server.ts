@@ -315,13 +315,27 @@ async function handleJoinMatchmaking(client: Client, characterUserId: string): P
         }
     )
 
-    console.log(`[WEBSOCKET] Matchmaking response:`, {
+    console.log(`[WEBSOCKET] ========================================`)
+    console.log(`[WEBSOCKET] Full matchmaking response for user ${client.userId}:`)
+    console.log(`[WEBSOCKET]`, JSON.stringify(result, null, 2))
+    console.log(`[WEBSOCKET] ========================================`)
+
+    // Check if result.data exists and has match_found
+    const hasMatchInData = result.data && typeof result.data === 'object' && 'match_found' in result.data && (result.data as any).match_found === true
+    const hasBattleInData = result.data && typeof result.data === 'object' && 'battle' in result.data && (result.data as any).battle !== undefined
+
+    console.log(`[WEBSOCKET] Matchmaking response analysis:`, {
         success: result.success,
-        hasMatch: result.data && isMatchFoundResponse(result.data),
-        battleId: isMatchFoundResponse(result.data) ? result.data.battle?.battle_id : undefined,
+        hasData: !!result.data,
+        dataType: typeof result.data,
+        hasMatchInData,
+        hasBattleInData,
+        isMatchFoundResponse: result.data ? isMatchFoundResponse(result.data) : false,
+        battleId: hasBattleInData ? (result.data as any).battle?.battle_id : undefined,
     })
 
     if (result.data && isMatchFoundResponse(result.data) && result.data.battle) {
+        console.log(`[WEBSOCKET] Match found in initial join! Processing match...`)
         processMatchFound(client, result.data.battle)
         return
     }
@@ -357,15 +371,23 @@ function startMatchmakingPolling(client: Client): void {
         }
 
         try {
+            // Use status endpoint for polling instead of join to avoid re-joining queue
             const result = await callBackend<MatchFoundData | MatchmakingResponse>(
-                '/backend/battles/matchmaking/join',
-                'POST',
-                {
-                    user_id: client.userId,
-                    character_user_id: client.characterUserId,
-                }
+                `/backend/battles/matchmaking/status?user_id=${client.userId}`,
+                'GET'
             )
 
+            console.log(`[WEBSOCKET] Polling result for user ${client.userId}:`, {
+                success: result.success,
+                hasData: !!result.data,
+                dataType: typeof result.data,
+                matchFound: result.data && typeof result.data === 'object' && 'match_found' in result.data ? (result.data as any).match_found : undefined,
+                hasBattle: result.data && typeof result.data === 'object' && 'battle' in result.data,
+                isMatchFoundResponse: result.data ? isMatchFoundResponse(result.data) : false,
+                battleId: result.data && typeof result.data === 'object' && 'battle' in result.data ? (result.data as any).battle?.battle_id : undefined,
+            })
+
+            // Check if match found
             if (result.data && isMatchFoundResponse(result.data) && result.data.battle) {
                 console.log(`[WEBSOCKET] Match found via polling! Battle ID: ${result.data.battle.battle_id}`)
                 processMatchFound(client, result.data.battle)
@@ -373,6 +395,22 @@ function startMatchmakingPolling(client: Client): void {
                 if (client.matchmakingInterval) {
                     clearInterval(client.matchmakingInterval)
                     client.matchmakingInterval = null
+                }
+                return
+            }
+
+            // Also check if result.data has match_found directly (alternative structure)
+            if (result.data && typeof result.data === 'object' && 'match_found' in result.data && (result.data as any).match_found === true && 'battle' in result.data) {
+                const battleData = (result.data as any).battle
+                if (battleData && battleData.battle_id) {
+                    console.log(`[WEBSOCKET] Match found via polling (alternative structure)! Battle ID: ${battleData.battle_id}`)
+                    processMatchFound(client, battleData)
+
+                    if (client.matchmakingInterval) {
+                        clearInterval(client.matchmakingInterval)
+                        client.matchmakingInterval = null
+                    }
+                    return
                 }
             }
         } catch (error) {
