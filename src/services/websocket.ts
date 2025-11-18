@@ -28,12 +28,13 @@ class WebSocketService {
      * Get WebSocket server URL (custom or Reverb)
      */
     private getWebSocketUrl(): string | null {
-        // Check for custom WebSocket server URL in production
+        // Check for custom WebSocket server URL in environment
         const customWsUrl =
             (Constants.expoConfig?.extra as any)?.websocketUrl ||
             process.env.EXPO_PUBLIC_WEBSOCKET_URL
 
         if (customWsUrl) {
+            console.log('[WEBSOCKET] Using custom WebSocket URL from environment:', customWsUrl)
             this.useCustomWebSocket = true
             return customWsUrl.startsWith('ws://') || customWsUrl.startsWith('wss://')
                 ? customWsUrl
@@ -41,14 +42,19 @@ class WebSocketService {
         }
 
         // Check if we should use custom WebSocket based on API URL
+        // Even in dev mode, if API is pointing to Railway, use custom WebSocket
         const baseUrl = API_CONFIG.BASE_URL
-        if (!__DEV__ && baseUrl.includes('railway.app')) {
-            // In production with Railway, use custom WebSocket server
+        console.log('[WEBSOCKET] Checking API URL for Railway:', baseUrl)
+        
+        if (baseUrl.includes('railway.app')) {
+            // API is on Railway, use custom WebSocket server
             const wsHost = 'websocket-production-213e.up.railway.app'
+            console.log('[WEBSOCKET] Detected Railway backend, using custom WebSocket server:', wsHost)
             this.useCustomWebSocket = true
             return `wss://${wsHost}`
         }
 
+        console.log('[WEBSOCKET] No custom WebSocket URL detected, will use Reverb')
         return null
     }
 
@@ -121,6 +127,7 @@ class WebSocketService {
      */
     async connect(userId: string): Promise<void> {
         if (this.status === 'connected' || this.status === 'connecting') {
+            console.log('[WEBSOCKET] Already connected or connecting, skipping')
             return
         }
 
@@ -129,11 +136,15 @@ class WebSocketService {
 
         // Check if we should use custom WebSocket server
         const customWsUrl = this.getWebSocketUrl()
+        console.log('[WEBSOCKET] WebSocket URL result:', customWsUrl, 'useCustom:', this.useCustomWebSocket)
+        
         if (customWsUrl && this.useCustomWebSocket) {
+            console.log('[WEBSOCKET] Connecting to custom WebSocket server')
             return this.connectCustomWebSocket(userId, customWsUrl)
         }
 
         // Otherwise use Reverb/Pusher
+        console.log('[WEBSOCKET] Connecting to Reverb/Pusher')
         return this.connectReverb(userId)
     }
 
@@ -142,7 +153,11 @@ class WebSocketService {
      */
     private async connectCustomWebSocket(userId: string, wsUrl: string): Promise<void> {
         try {
-            console.log('[WEBSOCKET] Connecting to custom WebSocket server:', wsUrl)
+            console.log('[WEBSOCKET] ========================================')
+            console.log('[WEBSOCKET] Attempting to connect to custom WebSocket server')
+            console.log('[WEBSOCKET] URL:', wsUrl)
+            console.log('[WEBSOCKET] User ID:', userId)
+            console.log('[WEBSOCKET] ========================================')
 
             this.ws = new WebSocket(wsUrl)
 
@@ -209,12 +224,21 @@ class WebSocketService {
             }
 
             this.ws.onerror = (error) => {
-                console.error('[WEBSOCKET] Custom WebSocket error:', error)
+                console.error('[WEBSOCKET] ========================================')
+                console.error('[WEBSOCKET] Custom WebSocket connection error!')
+                console.error('[WEBSOCKET] Error details:', error)
+                console.error('[WEBSOCKET] URL attempted:', wsUrl)
+                console.error('[WEBSOCKET] ========================================')
                 this.status = 'error'
             }
 
-            this.ws.onclose = () => {
+            this.ws.onclose = (event) => {
+                console.log('[WEBSOCKET] ========================================')
                 console.log('[WEBSOCKET] Custom WebSocket disconnected')
+                console.log('[WEBSOCKET] Close code:', event.code)
+                console.log('[WEBSOCKET] Close reason:', event.reason || 'none')
+                console.log('[WEBSOCKET] Was clean:', event.wasClean)
+                console.log('[WEBSOCKET] ========================================')
                 this.status = 'disconnected'
                 this.ws = null
             }

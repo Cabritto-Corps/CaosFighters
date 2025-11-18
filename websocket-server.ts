@@ -2,7 +2,18 @@ import * as http from 'http'
 import { WebSocket, WebSocketServer } from 'ws'
 
 // Get backend URL from environment or use default
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000'
+let BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000'
+
+// Ensure BACKEND_URL has protocol
+if (!BACKEND_URL.startsWith('http://') && !BACKEND_URL.startsWith('https://')) {
+    // If it's a Railway URL, use https
+    if (BACKEND_URL.includes('railway.app')) {
+        BACKEND_URL = `https://${BACKEND_URL}`
+    } else {
+        BACKEND_URL = `http://${BACKEND_URL}`
+    }
+}
+
 const PORT = parseInt(process.env.WS_PORT || '8080', 10)
 
 interface Client {
@@ -16,12 +27,28 @@ interface Client {
 const clients = new Map<WebSocket, Client>()
 
 const server = http.createServer()
-const wss = new WebSocketServer({ server })
+
+// Add request logging for debugging
+server.on('request', (req, res) => {
+    console.log(`[WEBSOCKET] HTTP request received: ${req.method} ${req.url}`)
+    console.log(`[WEBSOCKET] This is a WebSocket server, HTTP requests will be rejected`)
+})
+
+const wss = new WebSocketServer({ 
+    server,
+    perMessageDeflate: false, // Disable compression for better compatibility
+})
 
 wss.on('connection', (ws: WebSocket, req) => {
     const clientIp = req.socket.remoteAddress
-    console.log(`[WEBSOCKET] New WebSocket connection from ${clientIp}`)
+    const userAgent = req.headers['user-agent'] || 'unknown'
+    console.log(`[WEBSOCKET] ========================================`)
+    console.log(`[WEBSOCKET] NEW CONNECTION RECEIVED!`)
+    console.log(`[WEBSOCKET] Client IP: ${clientIp}`)
+    console.log(`[WEBSOCKET] User-Agent: ${userAgent}`)
+    console.log(`[WEBSOCKET] Headers:`, JSON.stringify(req.headers, null, 2))
     console.log(`[WEBSOCKET] Total clients connected: ${clients.size + 1}`)
+    console.log(`[WEBSOCKET] ========================================`)
 
     const client: Client = {
         ws,
@@ -417,6 +444,9 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`[WEBSOCKET] ========================================`)
     console.log(`[WEBSOCKET] WebSocket server started successfully`)
     console.log(`[WEBSOCKET] Listening on port ${PORT}`)
+    console.log(`[WEBSOCKET] Listening on 0.0.0.0:${PORT} (accepting external connections)`)
     console.log(`[WEBSOCKET] Backend URL: ${BACKEND_URL}`)
+    console.log(`[WEBSOCKET] Environment BACKEND_URL: ${process.env.BACKEND_URL || 'not set'}`)
     console.log(`[WEBSOCKET] ========================================`)
+    console.log(`[WEBSOCKET] Waiting for client connections...`)
 })
