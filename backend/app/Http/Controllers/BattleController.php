@@ -22,8 +22,7 @@ class BattleController extends Controller
         protected BattleService $battleService,
         protected BattleRepository $battleRepository,
         protected MatchmakingService $matchmakingService
-    ) {
-    }
+    ) {}
 
     /**
      * Get battle details by ID
@@ -132,7 +131,14 @@ class BattleController extends Controller
 
             // Process all matches in the queue (not just for this player)
             $matches = $this->matchmakingService->processMatches();
-            
+
+            // Log to console (stderr)
+            error_log(sprintf(
+                '[MATCHMAKING] Matches found after joining queue - User ID: %s, Matches Count: %d',
+                $validated['user_id'],
+                count($matches)
+            ));
+
             Log::info('Matches found after joining queue', [
                 'user_id' => $validated['user_id'],
                 'matches_count' => count($matches),
@@ -178,7 +184,7 @@ class BattleController extends Controller
                     // Broadcast match found event to both players via Reverb
                     event(new MatchFound($validated['user_id'], $battleResult['data']));
                     event(new MatchFound($playerMatch['opponent_user_id'], $battleResult['data']));
-                    
+
                     // Return match found data
                     return ApiResponse::success([
                         'match_found' => true,
@@ -189,14 +195,16 @@ class BattleController extends Controller
 
             // Process other matches that were found (for other players)
             foreach ($matches as $match) {
-                if ($match['player1']['user_id'] !== $validated['user_id'] && 
-                    $match['player2']['user_id'] !== $validated['user_id']) {
+                if (
+                    $match['player1']['user_id'] !== $validated['user_id'] &&
+                    $match['player2']['user_id'] !== $validated['user_id']
+                ) {
                     // This match is for other players, start their battle
                     Log::info('Starting battle for other players', [
                         'player1_id' => $match['player1']['user_id'],
                         'player2_id' => $match['player2']['user_id'],
                     ]);
-                    
+
                     $battleResult = $this->battleService->startMultiplayerBattle(
                         $match['player1']['user_id'],
                         $match['player1']['character_user_id'],
@@ -215,7 +223,7 @@ class BattleController extends Controller
                         // Broadcast match found event to both players via Reverb
                         event(new MatchFound($match['player1']['user_id'], $battleResult['data']));
                         event(new MatchFound($match['player2']['user_id'], $battleResult['data']));
-                        
+
                         Log::info('Battle started and events broadcasted for other players', [
                             'battle_id' => $battleResult['data']['battle_id'] ?? null,
                         ]);
@@ -226,7 +234,7 @@ class BattleController extends Controller
                     }
                 }
             }
-            
+
             // No match found yet - keep in queue
             // The WebSocket server will handle matchmaking polling
 
@@ -278,10 +286,10 @@ class BattleController extends Controller
 
         try {
             $validated = $validator->validated();
-            
+
             // Process matches in queue (in case someone else joined)
             $matches = $this->matchmakingService->processMatches();
-            
+
             // Process any matches found
             foreach ($matches as $match) {
                 $battleResult = $this->battleService->startMultiplayerBattle(
@@ -304,7 +312,7 @@ class BattleController extends Controller
                     event(new MatchFound($match['player2']['user_id'], $battleResult['data']));
                 }
             }
-            
+
             // Check if this user has a pending match
             $pendingMatch = $this->matchmakingService->pullPendingMatch($validated['user_id']);
 
