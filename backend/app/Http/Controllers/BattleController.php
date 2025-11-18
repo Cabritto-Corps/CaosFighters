@@ -130,6 +130,10 @@ class BattleController extends Controller
             }
 
             // Process all matches in the queue (not just for this player)
+            error_log(sprintf(
+                '[MATCHMAKING] Processing matches for user: %s',
+                $validated['user_id']
+            ));
             $matches = $this->matchmakingService->processMatches();
 
             // Log to console (stderr)
@@ -147,12 +151,23 @@ class BattleController extends Controller
             // Check if this player was matched
             $playerMatch = null;
             foreach ($matches as $match) {
+                error_log(sprintf(
+                    '[MATCHMAKING] Checking match - Player1: %s, Player2: %s, Current User: %s',
+                    $match['player1']['user_id'],
+                    $match['player2']['user_id'],
+                    $validated['user_id']
+                ));
+                
                 if ($match['player1']['user_id'] === $validated['user_id']) {
                     $playerMatch = [
                         'opponent_user_id' => $match['player2']['user_id'],
                         'opponent_character_user_id' => $match['player2']['character_user_id'],
                         'player_character_user_id' => $match['player1']['character_user_id'],
                     ];
+                    error_log(sprintf(
+                        '[MATCHMAKING] Player matched as Player1 - Opponent: %s',
+                        $match['player2']['user_id']
+                    ));
                     break;
                 } elseif ($match['player2']['user_id'] === $validated['user_id']) {
                     $playerMatch = [
@@ -160,8 +175,19 @@ class BattleController extends Controller
                         'opponent_character_user_id' => $match['player1']['character_user_id'],
                         'player_character_user_id' => $match['player2']['character_user_id'],
                     ];
+                    error_log(sprintf(
+                        '[MATCHMAKING] Player matched as Player2 - Opponent: %s',
+                        $match['player1']['user_id']
+                    ));
                     break;
                 }
+            }
+            
+            if (!$playerMatch && count($matches) > 0) {
+                error_log(sprintf(
+                    '[MATCHMAKING] WARNING: Matches found but current user (%s) was not matched',
+                    $validated['user_id']
+                ));
             }
 
             // If this player was matched, start the battle
@@ -181,15 +207,49 @@ class BattleController extends Controller
                         $playerMatch['opponent_user_id']
                     );
 
-                    // Broadcast match found event to both players via Reverb
-                    event(new MatchFound($validated['user_id'], $battleResult['data']));
-                    event(new MatchFound($playerMatch['opponent_user_id'], $battleResult['data']));
+                    error_log(sprintf(
+                        '[MATCHMAKING] Starting battle for players - Player1: %s, Player2: %s, Battle ID: %s',
+                        $validated['user_id'],
+                        $playerMatch['opponent_user_id'],
+                        $battleResult['data']['battle_id'] ?? 'unknown'
+                    ));
 
-                    // Return match found data
+                    // Broadcast match found event to both players via Reverb
+                    // Use try-catch to prevent broadcast errors from blocking the HTTP response
+                    try {
+                        error_log('[MATCHMAKING] Attempting to broadcast match found events via Reverb');
+                        event(new MatchFound($validated['user_id'], $battleResult['data']));
+                        event(new MatchFound($playerMatch['opponent_user_id'], $battleResult['data']));
+                        error_log('[MATCHMAKING] Broadcast events dispatched successfully');
+                    } catch (\Exception $e) {
+                        // Log error but don't fail the request
+                        error_log(sprintf(
+                            '[MATCHMAKING] ERROR: Failed to broadcast match found events - %s',
+                            $e->getMessage()
+                        ));
+                        Log::error('Failed to broadcast match found events', [
+                            'user_id' => $validated['user_id'],
+                            'opponent_user_id' => $playerMatch['opponent_user_id'],
+                            'battle_id' => $battleResult['data']['battle_id'] ?? null,
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString(),
+                        ]);
+                    }
+
+                    // Return match found data (even if broadcast failed)
+                    error_log(sprintf(
+                        '[MATCHMAKING] Returning match found response - Battle ID: %s',
+                        $battleResult['data']['battle_id'] ?? 'unknown'
+                    ));
                     return ApiResponse::success([
                         'match_found' => true,
                         'battle' => $battleResult['data'],
                     ], 'Match found! Battle started');
+                } else {
+                    error_log(sprintf(
+                        '[MATCHMAKING] ERROR: Failed to start battle - %s',
+                        $battleResult['message'] ?? 'Unknown error'
+                    ));
                 }
             }
 
@@ -220,9 +280,31 @@ class BattleController extends Controller
                             $match['player2']['user_id']
                         );
 
+                        error_log(sprintf(
+                            '[MATCHMAKING] Starting battle for other players - Player1: %s, Player2: %s, Battle ID: %s',
+                            $match['player1']['user_id'],
+                            $match['player2']['user_id'],
+                            $battleResult['data']['battle_id'] ?? 'unknown'
+                        ));
+
                         // Broadcast match found event to both players via Reverb
-                        event(new MatchFound($match['player1']['user_id'], $battleResult['data']));
-                        event(new MatchFound($match['player2']['user_id'], $battleResult['data']));
+                        try {
+                            error_log('[MATCHMAKING] Attempting to broadcast match found events for other players');
+                            event(new MatchFound($match['player1']['user_id'], $battleResult['data']));
+                            event(new MatchFound($match['player2']['user_id'], $battleResult['data']));
+                            error_log('[MATCHMAKING] Broadcast events for other players dispatched successfully');
+                        } catch (\Exception $e) {
+                            error_log(sprintf(
+                                '[MATCHMAKING] ERROR: Failed to broadcast for other players - %s',
+                                $e->getMessage()
+                            ));
+                            Log::error('Failed to broadcast match found events for other players', [
+                                'player1_id' => $match['player1']['user_id'],
+                                'player2_id' => $match['player2']['user_id'],
+                                'battle_id' => $battleResult['data']['battle_id'] ?? null,
+                                'error' => $e->getMessage(),
+                            ]);
+                        }
 
                         Log::info('Battle started and events broadcasted for other players', [
                             'battle_id' => $battleResult['data']['battle_id'] ?? null,
