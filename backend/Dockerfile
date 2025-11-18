@@ -54,12 +54,19 @@ RUN if [ -d ./temp-context/backend ]; then \
     fi && \
     rm -rf ./temp-context
 
+# Copia e configura o entrypoint script (agora que os arquivos estão na raiz)
+RUN if [ -f ./entrypoint.sh ]; then \
+    cp ./entrypoint.sh /entrypoint.sh && chmod +x /entrypoint.sh; \
+    else \
+    echo "ERROR: entrypoint.sh not found" && exit 1; \
+    fi
+
 ENV APP_ENV=production
 ENV APP_DEBUG=false
 ENV APP_PORT=8000
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${APP_PORT}"]
+ENTRYPOINT ["/entrypoint.sh"]
 
 
