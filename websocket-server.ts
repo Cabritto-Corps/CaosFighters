@@ -120,6 +120,15 @@ async function handleMessage(client: Client, data: any) {
                     }),
                 })
 
+                // Check HTTP status first
+                if (!response.ok) {
+                    console.error(`[WEBSOCKET] HTTP error! Status: ${response.status}`)
+                    const errorText = await response.text()
+                    console.error(`[WEBSOCKET] Error response:`, errorText)
+                    sendError(client.ws, `HTTP ${response.status}: Failed to join matchmaking`)
+                    return
+                }
+
                 const result = await response.json()
                 console.log(`[WEBSOCKET] ========================================`)
                 console.log(`[WEBSOCKET] Full matchmaking response for user ${client.userId}:`)
@@ -129,8 +138,8 @@ async function handleMessage(client: Client, data: any) {
                 // Check if match was found - the response structure differs:
                 // - Match found: { success: true, data: { match_found: true, battle: {...} } }
                 // - No match: { success: true, data: { success: true, queue_position: N } }
-                const hasMatch = result.success &&
-                    result.data &&
+                // - Error but might still have match data: { success: false, data: {...} }
+                const hasMatch = result.data &&
                     typeof result.data === 'object' &&
                     'match_found' in result.data &&
                     result.data.match_found === true &&
@@ -229,12 +238,125 @@ async function handleMessage(client: Client, data: any) {
                         })
                     }
                 } else {
-                    console.log(`[WEBSOCKET] User ${client.userId} queued for matchmaking, position: ${result.data?.queue_position || 1}`)
-                    send(client.ws, {
-                        type: 'matchmaking_queued',
-                        message: 'Waiting for opponent...',
-                        queue_position: result.data?.queue_position || 1,
-                    })
+                    // No match found yet - queue the user
+                    // Check if result.data has queue_position (normal queue response)
+                    // or if it's an error response
+                    if (result.success === false) {
+                        console.log(`[WEBSOCKET] Backend returned error, but checking if match was still created...`)
+                        console.log(`[WEBSOCKET] Error details:`, result.message, result.error)
+
+                        // Even if there's an error, check if we have match data
+                        if (result.data && result.data.match_found && result.data.battle) {
+                            console.log(`[WEBSOCKET] Match found despite error response! Processing match...`)
+                            // Reprocess as if match was found - this will be handled by the hasMatch check above
+                            // But since we're in the else block, we need to handle it here
+                            const battleData = result.data.battle
+                            client.battleId = battleData.battle_id
+                            console.log(`[WEBSOCKET] Match found! Battle ID: ${battleData.battle_id}`)
+
+                            // Process match (similar to the hasMatch block above)
+                            const isPlayer1 = battleData.player1_id === client.userId
+                            const playerCharacter = isPlayer1
+                                ? battleData.player1_character
+                                : battleData.player2_character
+                            const opponentCharacter = isPlayer1
+                                ? battleData.player2_character
+                                : battleData.player1_character
+                            const opponentId = isPlayer1 ? battleData.player2_id : battleData.player1_id
+
+                            const opponentClient = Array.from(clients.values()).find(
+                                (c) => c.userId === opponentId && c.battleId === null
+                            )
+
+                            if (opponentClient) {
+                                opponentClient.battleId = battleData.battle_id
+                                console.log(`[WEBSOCKET] Opponent ${opponentId} is connected, notifying both players`)
+
+                                send(client.ws, {
+                                    type: 'match_found',
+                                    data: {
+                                        battle_id: battleData.battle_id,
+                                        opponent: {
+                                            id: opponentId,
+                                            name: opponentCharacter.character.name,
+                                            character: opponentCharacter.character,
+                                            status: opponentCharacter.status,
+                                            moves: opponentCharacter.moves,
+                                        },
+                                        player_character: {
+                                            character_user_id: playerCharacter.character_user_id,
+                                            character: playerCharacter.character,
+                                            status: playerCharacter.status,
+                                            moves: playerCharacter.moves,
+                                        },
+                                        turn: isPlayer1 ? 'player' : 'enemy',
+                                    },
+                                })
+
+                                send(opponentClient.ws, {
+                                    type: 'match_found',
+                                    data: {
+                                        battle_id: battleData.battle_id,
+                                        opponent: {
+                                            id: client.userId!,
+                                            name: playerCharacter.character.name,
+                                            character: playerCharacter.character,
+                                            status: playerCharacter.status,
+                                            moves: playerCharacter.moves,
+                                        },
+                                        player_character: {
+                                            character_user_id: opponentCharacter.character_user_id,
+                                            character: opponentCharacter.character,
+                                            status: opponentCharacter.status,
+                                            moves: opponentCharacter.moves,
+                                        },
+                                        turn: isPlayer1 ? 'enemy' : 'player',
+                                    },
+                                })
+                            } else {
+                                console.log(`[WEBSOCKET] Opponent ${opponentId} is NOT connected, only notifying current player`)
+                                send(client.ws, {
+                                    type: 'match_found',
+                                    data: {
+                                        battle_id: battleData.battle_id,
+                                        opponent: {
+                                            id: opponentId,
+                                            name: opponentCharacter.character.name,
+                                            character: opponentCharacter.character,
+                                            status: opponentCharacter.status,
+                                            moves: opponentCharacter.moves,
+                                        },
+                                        player_character: {
+                                            character_user_id: playerCharacter.character_user_id,
+                                            character: playerCharacter.character,
+                                            status: playerCharacter.status,
+                                            moves: playerCharacter.moves,
+                                        },
+                                        turn: isPlayer1 ? 'player' : 'enemy',
+                                    },
+                                })
+                            }
+                            return // Match processed, don't start polling
+                        } else {
+                            // Real error, queue with fallback position
+                            console.log(`[WEBSOCKET] Real error occurred, queueing with fallback`)
+                            send(client.ws, {
+                                type: 'matchmaking_queued',
+                                message: 'Waiting for opponent...',
+                                queue_position: 1,
+                            })
+                        }
+                    } else {
+                        // Normal queue response
+                        const queuePosition = result.data?.queue_position ||
+                            (result.data?.success ? result.data.queue_position : 1)
+                        console.log(`[WEBSOCKET] User ${client.userId} queued for matchmaking, position: ${queuePosition}`)
+                        send(client.ws, {
+                            type: 'matchmaking_queued',
+                            message: 'Waiting for opponent...',
+                            queue_position: queuePosition,
+                        })
+                    }
 
                     // Start polling for matches every 2 seconds
                     if (client.matchmakingInterval) {
@@ -267,6 +389,13 @@ async function handleMessage(client: Client, data: any) {
                                 }
                             )
 
+                            // Check HTTP status first
+                            if (!matchResponse.ok) {
+                                console.error(`[WEBSOCKET] Polling HTTP error! Status: ${matchResponse.status}`)
+                                // Continue polling even if there's an error
+                                return
+                            }
+
                             const matchResult = await matchResponse.json()
                             console.log(`[WEBSOCKET] Polling result for user ${client.userId}:`, {
                                 success: matchResult.success,
@@ -280,9 +409,8 @@ async function handleMessage(client: Client, data: any) {
                                 console.log(`[WEBSOCKET] Full polling response:`, JSON.stringify(matchResult, null, 2))
                             }
 
-                            // Check if match was found
-                            const hasMatch = matchResult.success &&
-                                matchResult.data &&
+                            // Check if match was found (even if success is false due to broadcast errors)
+                            const hasMatch = matchResult.data &&
                                 typeof matchResult.data === 'object' &&
                                 'match_found' in matchResult.data &&
                                 matchResult.data.match_found === true &&
