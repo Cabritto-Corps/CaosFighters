@@ -34,11 +34,14 @@ class MusicManager {
     }
   }
 
-  public async loadMusic(source: string | number) {
+  public async loadMusic(source: string | number, autoPlay: boolean = false) {
     try {
       // Se já carregou, não carrega novamente
       if (this.isLoaded && this.sound) {
         console.log('Música já foi carregada');
+        if (autoPlay && !this.isPlaying) {
+          await this.play();
+        }
         return;
       }
 
@@ -62,7 +65,7 @@ class MusicManager {
       const { sound } = await Audio.Sound.createAsync(
         uri,
         {
-          shouldPlay: false,
+          shouldPlay: autoPlay,
           isLooping: true,
           volume: this.isMuted ? 0 : this.volume,
         }
@@ -70,6 +73,9 @@ class MusicManager {
 
       this.sound = sound;
       this.isLoaded = true;
+      if (autoPlay) {
+        this.isPlaying = true;
+      }
       console.log('Música carregada com sucesso');
     } catch (error) {
       console.warn('Erro ao carregar música:', error);

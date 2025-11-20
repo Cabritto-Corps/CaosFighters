@@ -11,20 +11,15 @@ export default function RootLayout() {
       try {
         console.log('Inicializando música global...');
         const musicManager = MusicManager.getInstance();
-        await musicManager.loadMusic(require('../../assets/sounds/musicadefundo.wav'));
-        await musicManager.play();
+        // Carregar e tocar imediatamente (autoPlay = true)
+        await musicManager.loadMusic(require('../../assets/sounds/musicadefundo.mp3'), true);
         console.log('Música global iniciada com sucesso');
       } catch (error) {
         console.warn('Erro ao inicializar música global:', error);
       }
     };
-    
-    // Delay para garantir que o app foi carregado
-    const timer = setTimeout(initializeGlobalMusic, 3000);
-    
-    return () => {
-      clearTimeout(timer);
-    };
+
+    initializeGlobalMusic();
   }, []);
 
   return (
@@ -37,56 +32,56 @@ export default function RootLayout() {
           animation: 'slide_from_right',
         }}
       >
-        <Stack.Screen 
-          name="index" 
-          options={{ 
+        <Stack.Screen
+          name="index"
+          options={{
             title: 'Caos Fighters',
             headerShown: false,
-          }} 
+          }}
         />
-        <Stack.Screen 
-          name="(auth)/login" 
-          options={{ 
+        <Stack.Screen
+          name="(auth)/login"
+          options={{
             title: 'Entrar na Arena',
             headerShown: false,
             presentation: 'modal',
-          }} 
+          }}
         />
-        <Stack.Screen 
-          name="(auth)/register" 
-          options={{ 
+        <Stack.Screen
+          name="(auth)/register"
+          options={{
             title: 'Novo Guerreiro',
             headerShown: false,
             presentation: 'modal',
-          }} 
+          }}
         />
-        <Stack.Screen 
-          name="main" 
-          options={{ 
+        <Stack.Screen
+          name="main"
+          options={{
             title: 'Arena Principal',
             headerShown: false,
-          }} 
+          }}
         />
-        <Stack.Screen 
-          name="profile" 
-          options={{ 
+        <Stack.Screen
+          name="profile"
+          options={{
             title: 'Perfil do Guerreiro',
             headerShown: false,
-          }} 
+          }}
         />
-        <Stack.Screen 
-          name="battle" 
-          options={{ 
+        <Stack.Screen
+          name="battle"
+          options={{
             title: 'Campo de Batalha',
             headerShown: false,
-          }} 
+          }}
         />
-        <Stack.Screen 
-          name="ranking" 
-          options={{ 
+        <Stack.Screen
+          name="ranking"
+          options={{
             title: 'Ranking',
             headerShown: false,
-          }} 
+          }}
         />
       </Stack>
     </SafeAreaProvider>
