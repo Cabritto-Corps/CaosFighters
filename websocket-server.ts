@@ -429,12 +429,12 @@ interface AttackResponse {
 }
 
 async function handleBattleAttack(client: Client, moveId: string): Promise<void> {
-    console.log(`[WEBSOCKET] ========================================`)
+    console.log(`[WEBSOCKET] =======================================`)
     console.log(`[WEBSOCKET] BATTLE ATTACK REQUEST RECEIVED`)
     console.log(`[WEBSOCKET] User ID: ${client.userId}`)
     console.log(`[WEBSOCKET] Battle ID: ${client.battleId}`)
     console.log(`[WEBSOCKET] Move ID: ${moveId}`)
-    console.log(`[WEBSOCKET] ========================================`)
+    console.log(`[WEBSOCKET] =======================================`)
 
     if (!client.battleId || !client.userId) {
         console.error(`[WEBSOCKET] Invalid battle attack request - missing battleId or userId`)
