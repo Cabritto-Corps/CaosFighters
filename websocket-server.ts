@@ -80,21 +80,7 @@ interface CharacterData {
 
 interface MatchFoundPayload {
     type: 'match_found'
-    data: {
-        battle_id: string
-        opponent: {
-            id: string
-            name: string
-            character: CharacterData['character']
-            status: CharacterData['status']
-            moves: CharacterData['moves']
-        }
-        player_character: {
-            character_user_id: string
-            character: CharacterData['character']
-            status: CharacterData['status']
-            moves: CharacterData['moves']
-        }
+    data: BattleData & {
         turn: 'player' | 'enemy'
     }
 }
@@ -243,8 +229,6 @@ function processMatchFound(client: Client, battleData: BattleData): void {
     console.log(`[WEBSOCKET] Match found! Battle ID: ${battleData.battle_id}, Player1: ${battleData.player1_id}, Player2: ${battleData.player2_id}`)
 
     const isPlayer1 = battleData.player1_id === client.userId
-    const playerCharacter = isPlayer1 ? battleData.player1_character : battleData.player2_character
-    const opponentCharacter = isPlayer1 ? battleData.player2_character : battleData.player1_character
     const opponentId = isPlayer1 ? battleData.player2_id : battleData.player1_id
 
     const opponentClient = Array.from(clients.values()).find(
@@ -259,39 +243,23 @@ function processMatchFound(client: Client, battleData: BattleData): void {
         }
         console.log(`[WEBSOCKET] Opponent ${opponentId} is connected, notifying both players`)
 
-        notifyMatchFound(client, battleData.battle_id, opponentId, playerCharacter, opponentCharacter, isPlayer1 ? 'player' : 'enemy')
-        notifyMatchFound(opponentClient, battleData.battle_id, client.userId!, opponentCharacter, playerCharacter, isPlayer1 ? 'enemy' : 'player')
+        notifyMatchFound(client, battleData, isPlayer1 ? 'player' : 'enemy')
+        notifyMatchFound(opponentClient, battleData, isPlayer1 ? 'enemy' : 'player')
     } else {
         console.log(`[WEBSOCKET] Opponent ${opponentId} is NOT connected, only notifying current player`)
-        notifyMatchFound(client, battleData.battle_id, opponentId, playerCharacter, opponentCharacter, isPlayer1 ? 'player' : 'enemy')
+        notifyMatchFound(client, battleData, isPlayer1 ? 'player' : 'enemy')
     }
 }
 
 function notifyMatchFound(
     client: Client,
-    battleId: string,
-    opponentId: string,
-    playerCharacter: CharacterData,
-    opponentCharacter: CharacterData,
+    battleData: BattleData,
     turn: 'player' | 'enemy'
 ): void {
     send(client.ws, {
         type: 'match_found',
         data: {
-            battle_id: battleId,
-            opponent: {
-                id: opponentId,
-                name: opponentCharacter.character.name,
-                character: opponentCharacter.character,
-                status: opponentCharacter.status,
-                moves: opponentCharacter.moves,
-            },
-            player_character: {
-                character_user_id: playerCharacter.character_user_id,
-                character: playerCharacter.character,
-                status: playerCharacter.status,
-                moves: playerCharacter.moves,
-            },
+            ...battleData,
             turn,
         },
     })
@@ -421,6 +389,12 @@ function startMatchmakingPolling(client: Client): void {
 }
 
 async function handleLeaveMatchmaking(client: Client): Promise<void> {
+    // If a battle is already assigned, ignore leave request to prevent disrupting match start
+    if (client.battleId) {
+        console.log(`[WEBSOCKET] Ignoring leave_matchmaking request - client ${client.userId} already has battle ${client.battleId}`)
+        return
+    }
+
     if (client.matchmakingInterval) {
         clearInterval(client.matchmakingInterval)
         client.matchmakingInterval = null
@@ -455,12 +429,21 @@ interface AttackResponse {
 }
 
 async function handleBattleAttack(client: Client, moveId: string): Promise<void> {
+    console.log(`[WEBSOCKET] ========================================`)
+    console.log(`[WEBSOCKET] BATTLE ATTACK REQUEST RECEIVED`)
+    console.log(`[WEBSOCKET] User ID: ${client.userId}`)
+    console.log(`[WEBSOCKET] Battle ID: ${client.battleId}`)
+    console.log(`[WEBSOCKET] Move ID: ${moveId}`)
+    console.log(`[WEBSOCKET] ========================================`)
+
     if (!client.battleId || !client.userId) {
+        console.error(`[WEBSOCKET] Invalid battle attack request - missing battleId or userId`)
         sendError(client.ws, 'Not in a battle')
         return
     }
 
     try {
+        console.log(`[WEBSOCKET] Calling backend attack endpoint for battle ${client.battleId}`)
         const result = await callBackend<AttackResponse['data']>(
             `/backend/battles/${client.battleId}/attack`,
             'POST',
@@ -470,7 +453,19 @@ async function handleBattleAttack(client: Client, moveId: string): Promise<void>
             }
         )
 
+        console.log(`[WEBSOCKET] Backend attack response:`, {
+            success: result.success,
+            hasData: !!result.data,
+            moveName: result.data?.move_name,
+            damage: result.data?.damage,
+            enemyCurrentHp: result.data?.enemy_current_hp,
+            turn: result.data?.turn,
+            isFinished: result.data?.is_finished,
+            winnerId: result.data?.winner_id,
+        })
+
         if (!result.success || !result.data) {
+            console.error(`[WEBSOCKET] Attack failed:`, result.message || 'Unknown error')
             sendError(client.ws, result.message || 'Attack failed')
             return
         }
@@ -482,7 +477,14 @@ async function handleBattleAttack(client: Client, moveId: string): Promise<void>
             (c) => c.battleId === client.battleId && c.userId !== client.userId && c.userId !== null
         )
 
+        console.log(`[WEBSOCKET] Opponent lookup:`, {
+            found: !!opponentClient,
+            opponentUserId: opponentClient?.userId || 'not found',
+            totalClients: clients.size,
+        })
+
         if (opponentClient) {
+            console.log(`[WEBSOCKET] Sending attack notification to opponent ${opponentClient.userId}`)
             send(opponentClient.ws, {
                 type: 'battle_attack',
                 battle_id: client.battleId,
@@ -498,9 +500,13 @@ async function handleBattleAttack(client: Client, moveId: string): Promise<void>
                     winner_id: attackData.winner_id,
                 },
             })
+            console.log(`[WEBSOCKET] Attack notification sent to opponent`)
+        } else {
+            console.warn(`[WEBSOCKET] Opponent not found for battle ${client.battleId} - cannot notify opponent`)
         }
 
         // Confirm to attacker
+        console.log(`[WEBSOCKET] Sending attack confirmation to attacker ${client.userId}`)
         send(client.ws, {
             type: 'battle_attack',
             battle_id: client.battleId,
@@ -516,8 +522,15 @@ async function handleBattleAttack(client: Client, moveId: string): Promise<void>
                 winner_id: attackData.winner_id,
             },
         })
+        console.log(`[WEBSOCKET] Attack confirmation sent to attacker`)
+        console.log(`[WEBSOCKET] ========================================`)
     } catch (error) {
-        console.error(`[WEBSOCKET] Error executing attack:`, error)
+        console.error(`[WEBSOCKET] ========================================`)
+        console.error(`[WEBSOCKET] ERROR executing attack:`, error)
+        console.error(`[WEBSOCKET] User ID: ${client.userId}`)
+        console.error(`[WEBSOCKET] Battle ID: ${client.battleId}`)
+        console.error(`[WEBSOCKET] Move ID: ${moveId}`)
+        console.error(`[WEBSOCKET] ========================================`)
         sendError(client.ws, 'Failed to execute attack')
     }
 }
@@ -557,7 +570,10 @@ async function handleMessage(client: Client, message: WebSocketMessage): Promise
             break
 
         case 'battle_attack':
+            console.log(`[WEBSOCKET] Received battle_attack message from user ${client.userId}`)
+            console.log(`[WEBSOCKET] Message data:`, JSON.stringify(message.data, null, 2))
             if (!message.data?.move_id) {
+                console.error(`[WEBSOCKET] Battle attack message missing move_id`)
                 sendError(client.ws, 'Move ID required')
                 return
             }

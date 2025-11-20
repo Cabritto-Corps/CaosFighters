@@ -6,10 +6,10 @@ import BattleAttackButton from '../components/ui/BattleAttackButton'
 import ChaosButton from '../components/ui/ChaosButton'
 import ChaoticBackground from '../components/ui/ChaoticBackground'
 import MoveDetailModal, { MoveDetail } from '../components/ui/MoveDetailModal'
+import { useAuth } from '../hooks/useAuth'
 import { apiService } from '../services/api'
 import { websocketService } from '../services/websocket'
-import { useAuth } from '../hooks/useAuth'
-import type { BattleMode, WebSocketMessage, BattleAttackWebSocketData } from '../types/battle'
+import type { BattleAttackWebSocketData, BattleMode, WebSocketMessage } from '../types/battle'
 
 const { width, height } = Dimensions.get('window')
 
@@ -77,10 +77,14 @@ export default function BattleScreen() {
     const [currentDamage, setCurrentDamage] = useState(0)
     const [selectedMove, setSelectedMove] = useState<MoveDetail | null>(null)
     const [waitingForOpponent, setWaitingForOpponent] = useState(false)
+    const [isProcessingAction, setIsProcessingAction] = useState(false)
 
     // Battle timing
     const battleStartTimeRef = useRef<number>(Date.now())
     const websocketUnsubscribeRef = useRef<(() => void) | null>(null)
+    const battlePollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+    const lastWebSocketMessageRef = useRef<number>(Date.now())
+    const lastPolledBattleLogLengthRef = useRef<number>(0)
 
     // Animações
     const fadeAnim = useRef(new Animated.Value(0)).current
@@ -111,8 +115,11 @@ export default function BattleScreen() {
         // Setup WebSocket for multiplayer battles
         if (isMultiplayer && user?.id) {
             const battleId = params.battleId as string
-            
+
             const setupWebSocket = async () => {
+                // Initialize WebSocket message tracking
+                lastWebSocketMessageRef.current = Date.now()
+
                 // Ensure WebSocket is connected
                 if (!websocketService.isConnected()) {
                     await websocketService.connect(user.id)
@@ -137,6 +144,11 @@ export default function BattleScreen() {
                     websocketUnsubscribeRef.current()
                 }
                 websocketService.unsubscribeFromBattle(battleId)
+                // Clear polling interval
+                if (battlePollingIntervalRef.current) {
+                    clearInterval(battlePollingIntervalRef.current)
+                    battlePollingIntervalRef.current = null
+                }
             }
         }
     }, [])
@@ -146,11 +158,71 @@ export default function BattleScreen() {
             return // Not for this battle
         }
 
+        console.log(`[BATTLE] ========================================`)
+        console.log(`[BATTLE] WebSocket message received`)
+        console.log(`[BATTLE] Type: ${message.type}`)
+        console.log(`[BATTLE] Battle ID: ${message.battle_id}`)
+        console.log(`[BATTLE] Current turn: ${turn}`)
+        console.log(`[BATTLE] Is processing action: ${isProcessingAction}`)
+        console.log(`[BATTLE] Message data:`, JSON.stringify(message.data, null, 2))
+        console.log(`[BATTLE] ========================================`)
+
+        // Update last WebSocket message time - if we're receiving messages, stop polling
+        lastWebSocketMessageRef.current = Date.now()
+
+        // Stop polling if we're receiving WebSocket messages (connection is working)
+        if (battlePollingIntervalRef.current) {
+            console.log(`[BATTLE] Stopping polling - WebSocket messages are working`)
+            clearInterval(battlePollingIntervalRef.current)
+            battlePollingIntervalRef.current = null
+        }
+
         switch (message.type) {
             case 'battle_attack':
                 if (message.data) {
                     const attackData = message.data as BattleAttackWebSocketData
-                    handleOpponentAttack(attackData)
+                    const isPlayerAttack = attackData.attacker_id === params.playerId
+
+                    console.log(`[BATTLE] Processing battle_attack message`)
+                    console.log(`[BATTLE] Attacker ID: ${attackData.attacker_id}`)
+                    console.log(`[BATTLE] Player ID: ${params.playerId}`)
+                    console.log(`[BATTLE] Is player attack: ${isPlayerAttack}`)
+                    console.log(`[BATTLE] Turn in message: ${attackData.turn}`)
+                    console.log(`[BATTLE] Damage: ${attackData.damage}`)
+                    console.log(`[BATTLE] Target HP: ${attackData.target_hp}`)
+                    console.log(`[BATTLE] Battle ended: ${attackData.battle_ended}`)
+
+                    if (isPlayerAttack) {
+                        console.log(`[BATTLE] This is the player's own attack confirmation`)
+                        // Player's own attack - update state and unlock input when turn changes
+                        if (attackData.turn === 'enemy') {
+                            console.log(`[BATTLE] Turn changed to enemy - waiting for opponent`)
+                            // Opponent's turn now - unlock input when they respond
+                            setWaitingForOpponent(true)
+                        } else if (attackData.turn === 'player') {
+                            console.log(`[BATTLE] Turn changed back to player - unlocking input`)
+                            // Back to player's turn - unlock input
+                            setIsProcessingAction(false)
+                        }
+
+                        // Update HP if needed
+                        if (attackData.target_hp !== undefined) {
+                            console.log(`[BATTLE] Updating enemy HP to: ${attackData.target_hp}`)
+                            setEnemyHP(attackData.target_hp)
+                        }
+
+                        // Check if battle ended
+                        if (attackData.battle_ended && attackData.winner_id) {
+                            console.log(`[BATTLE] Battle ended! Winner: ${attackData.winner_id}`)
+                            setBattleEnded(true)
+                            setWinner(attackData.winner_id === params.playerId ? 'player' : 'enemy')
+                            setIsProcessingAction(false)
+                        }
+                    } else {
+                        console.log(`[BATTLE] This is opponent's attack - calling handleOpponentAttack`)
+                        // Opponent's attack
+                        handleOpponentAttack(attackData)
+                    }
                 }
                 break
             case 'battle_state_update':
@@ -158,7 +230,13 @@ export default function BattleScreen() {
                     const stateData = message.data as any
                     if (stateData.player_hp !== undefined) setPlayerHP(stateData.player_hp)
                     if (stateData.enemy_hp !== undefined) setEnemyHP(stateData.enemy_hp)
-                    if (stateData.turn) setTurn(stateData.turn)
+                    if (stateData.turn) {
+                        setTurn(stateData.turn)
+                        // Unlock input when it's player's turn
+                        if (stateData.turn === 'player') {
+                            setIsProcessingAction(false)
+                        }
+                    }
                 }
                 break
             case 'battle_end':
@@ -167,12 +245,21 @@ export default function BattleScreen() {
                     setBattleEnded(true)
                     setWinner(endData.winner_id === params.playerId ? 'player' : 'enemy')
                     setBattleLog((prev) => [...prev, endData.message || 'Batalha finalizada!'])
+                    setIsProcessingAction(false)
                 }
                 break
         }
     }
 
     const handleOpponentAttack = (attackData: BattleAttackWebSocketData) => {
+        console.log(`[BATTLE] ========================================`)
+        console.log(`[BATTLE] Handling opponent attack`)
+        console.log(`[BATTLE] Current turn: ${turn}`)
+        console.log(`[BATTLE] Attack data:`, JSON.stringify(attackData, null, 2))
+        console.log(`[BATTLE] Current player HP: ${playerHP}`)
+        console.log(`[BATTLE] Current enemy HP: ${enemyHP}`)
+        console.log(`[BATTLE] ========================================`)
+
         // Update enemy HP (which is actually the opponent's HP in multiplayer)
         setEnemyHP(attackData.target_hp)
         setCurrentDamage(attackData.damage)
@@ -183,12 +270,21 @@ export default function BattleScreen() {
         animateAttack('enemy', 'player', attackData.damage)
 
         // Update turn
+        console.log(`[BATTLE] Updating turn from ${turn} to ${attackData.turn}`)
         setTurn(attackData.turn)
+
+        // Unlock input when opponent's turn is confirmed
+        if (attackData.turn === 'player') {
+            console.log(`[BATTLE] Unlocking input - it's player's turn now`)
+            setIsProcessingAction(false)
+        }
 
         // Check if battle ended
         if (attackData.battle_ended && attackData.winner_id) {
+            console.log(`[BATTLE] Battle ended! Winner: ${attackData.winner_id}`)
             setBattleEnded(true)
             setWinner(attackData.winner_id === params.playerId ? 'player' : 'enemy')
+            setIsProcessingAction(false)
         }
     }
 
@@ -213,6 +309,97 @@ export default function BattleScreen() {
             return () => clearTimeout(timer)
         }
     }, [turn, battleEnded, isMultiplayer])
+
+    // Polling fallback for multiplayer battles when waiting for opponent
+    // Only polls if WebSocket messages haven't been received recently (connection might be down)
+    useEffect(() => {
+        if (isMultiplayer && turn === 'enemy' && !battleEnded && user?.id) {
+            const battleId = params.battleId as string
+
+            // Only start polling if we haven't received WebSocket messages in the last 5 seconds
+            // This prevents unnecessary polling when WebSocket is working
+            const checkAndStartPolling = () => {
+                const timeSinceLastWebSocket = Date.now() - lastWebSocketMessageRef.current
+                const shouldPoll = timeSinceLastWebSocket > 5000 // Only poll if no WebSocket messages for 5+ seconds
+
+                if (!shouldPoll) {
+                    // WebSocket is working, don't poll
+                    return
+                }
+
+                // Clear existing polling if any
+                if (battlePollingIntervalRef.current) {
+                    clearInterval(battlePollingIntervalRef.current)
+                    battlePollingIntervalRef.current = null
+                }
+
+                // Start polling every 5 seconds (less frequent to reduce server load)
+                battlePollingIntervalRef.current = setInterval(async () => {
+                    // Check again if WebSocket is working before polling
+                    const timeSinceLastWebSocket = Date.now() - lastWebSocketMessageRef.current
+                    if (timeSinceLastWebSocket < 5000) {
+                        // WebSocket is working now, stop polling
+                        if (battlePollingIntervalRef.current) {
+                            clearInterval(battlePollingIntervalRef.current)
+                            battlePollingIntervalRef.current = null
+                        }
+                        return
+                    }
+
+                    try {
+                        const battleDetails = await apiService.getBattleDetails(battleId, user.id)
+                        if (battleDetails.success && battleDetails.data) {
+                            const battleData = battleDetails.data
+                            const battleLog = battleData.battle_log || []
+
+                            // Only process if battle log has changed
+                            if (battleLog.length > lastPolledBattleLogLengthRef.current) {
+                                lastPolledBattleLogLengthRef.current = battleLog.length
+
+                                // Check if battle ended
+                                if (battleData.winner_id) {
+                                    setBattleEnded(true)
+                                    setWinner(battleData.winner_id === params.playerId ? 'player' : 'enemy')
+                                    if (battlePollingIntervalRef.current) {
+                                        clearInterval(battlePollingIntervalRef.current)
+                                        battlePollingIntervalRef.current = null
+                                    }
+                                    setIsProcessingAction(false)
+                                    return
+                                }
+
+                                // Update turn if it changed (opponent might have attacked)
+                                // Note: We can't fully sync state from polling, but we can detect if turn changed
+                                // The WebSocket should handle the actual state updates
+                            }
+                        }
+                    } catch (error) {
+                        // Ignore polling errors - WebSocket should handle updates
+                        console.error('[BATTLE] Polling error:', error)
+                    }
+                }, 5000) // Poll every 5 seconds (less frequent)
+            }
+
+            // Start checking after a delay (give WebSocket time to work first)
+            const initialDelay = setTimeout(() => {
+                checkAndStartPolling()
+            }, 5000) // Wait 5 seconds before starting to poll
+
+            return () => {
+                clearTimeout(initialDelay)
+                if (battlePollingIntervalRef.current) {
+                    clearInterval(battlePollingIntervalRef.current)
+                    battlePollingIntervalRef.current = null
+                }
+            }
+        } else {
+            // Clear polling when it's player's turn or battle ended
+            if (battlePollingIntervalRef.current) {
+                clearInterval(battlePollingIntervalRef.current)
+                battlePollingIntervalRef.current = null
+            }
+        }
+    }, [turn, battleEnded, isMultiplayer, user?.id, params.battleId, params.playerId])
 
     const animateAttack = (attacker: 'player' | 'enemy', target: 'player' | 'enemy', damage: number) => {
         const targetAnim = target === 'player' ? shakeAnimPlayer : shakeAnimEnemy
@@ -297,18 +484,43 @@ export default function BattleScreen() {
     }
 
     const playerAttack = async (attack: PlayerMove) => {
-        if (turn !== 'player' || battleEnded) return
+        if (turn !== 'player' || battleEnded || isProcessingAction) return
+
+        // Lock input immediately to prevent multiple clicks
+        setIsProcessingAction(true)
 
         if (isMultiplayer) {
             // Multiplayer mode - send attack via HTTP API
-            // Backend will broadcast result via Reverb
+            // Backend will broadcast result via WebSocket
             const battleId = params.battleId as string
             try {
-                await apiService.executeAttack(battleId, attack.id.toString())
+                console.log(`[BATTLE] ========================================`)
+                console.log(`[BATTLE] Sending attack request`)
+                console.log(`[BATTLE] Battle ID: ${battleId}`)
+                console.log(`[BATTLE] Move ID: ${attack.id}`)
+                console.log(`[BATTLE] Move Name: ${attack.name}`)
+                console.log(`[BATTLE] Current turn: ${turn}`)
+                console.log(`[BATTLE] Player ID: ${params.playerId}`)
+                console.log(`[BATTLE] ========================================`)
+
+                // Update last WebSocket message time optimistically (we expect a response soon)
+                lastWebSocketMessageRef.current = Date.now()
+
+                const attackResponse = await apiService.executeAttack(battleId, attack.id.toString())
+                console.log(`[BATTLE] Attack API response received:`, JSON.stringify(attackResponse, null, 2))
+
                 setWaitingForOpponent(true)
                 setTurn('enemy') // Optimistically set turn, will be confirmed by server
+                console.log(`[BATTLE] Turn optimistically set to 'enemy', waiting for WebSocket confirmation`)
             } catch (error) {
-                console.error('Failed to execute attack:', error)
+                console.error(`[BATTLE] ========================================`)
+                console.error(`[BATTLE] Failed to execute attack:`, error)
+                console.error(`[BATTLE] Battle ID: ${battleId}`)
+                console.error(`[BATTLE] Move ID: ${attack.id}`)
+                console.error(`[BATTLE] ========================================`)
+                // Unlock on error so user can try again
+                setIsProcessingAction(false)
+                setTurn('player')
             }
         } else {
             // Bot mode - calculate damage locally
@@ -337,6 +549,7 @@ export default function BattleScreen() {
             }
 
             setTurn('enemy')
+            setIsProcessingAction(false) // Unlock for bot mode (turn changes immediately)
         }
     }
 
@@ -626,6 +839,7 @@ export default function BattleScreen() {
                                                         type: attack.type,
                                                     })
                                                 }
+                                                disabled={isProcessingAction}
                                                 delay={index * 120}
                                             />
                                         </View>

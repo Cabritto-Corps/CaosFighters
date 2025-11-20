@@ -144,7 +144,7 @@ export default function MainScreen() {
         }
     }, [isSearchingOpponent, searchingPulseAnim])
 
-    const cancelMatchmaking = () => {
+    const cancelMatchmaking = (notifyServer: boolean = true) => {
         // Clear polling interval
         if (matchmakingPollIntervalRef.current) {
             clearInterval(matchmakingPollIntervalRef.current)
@@ -163,16 +163,19 @@ export default function MainScreen() {
             websocketUnsubscribeRef.current = null
         }
 
-        // Leave matchmaking queue
-        websocketService.leaveMatchmaking()
-        apiService.leaveMatchmaking().catch(console.error)
+        // Leave matchmaking queue (only if notifyServer is true)
+        // When a match is found, we don't want to cancel it by sending leave requests
+        if (notifyServer) {
+            websocketService.leaveMatchmaking()
+            apiService.leaveMatchmaking().catch(console.error)
+        }
 
         setIsSearchingOpponent(false)
         setIsStartingBattle(false)
     }
 
     const handleStartBattle = async () => {
-        if (!currentCharacter) return
+        if (!currentCharacter || !currentCharacter.character_user_id) return
 
         // If already searching, cancel the search
         if (isSearchingOpponent) {
@@ -202,12 +205,13 @@ export default function MainScreen() {
                 // Set up message handler for match found
                 const unsubscribe = websocketService.onMessage((message) => {
                     if (message.type === 'match_found' && message.data) {
-                        cancelMatchmaking()
+                        // Don't notify server when match is found - we don't want to cancel the match
+                        cancelMatchmaking(false)
 
                         const matchData = message.data as MatchFoundData
                         navigateToMultiplayerBattle(matchData)
                     } else if (message.type === 'error') {
-                        cancelMatchmaking()
+                        cancelMatchmaking() // Notify server on error
                         console.error('Matchmaking error:', message.message)
                         alert(message.message || 'Erro ao procurar oponente')
                     } else if (message.type === 'matchmaking_queued') {
@@ -223,7 +227,7 @@ export default function MainScreen() {
                 try {
                     // Wait a bit for WebSocket to be fully connected
                     await new Promise((resolve) => setTimeout(resolve, 500))
-                    
+
                     if (websocketService.isConnected()) {
                         // Try WebSocket first (for custom server)
                         websocketService.joinMatchmaking(currentCharacter.character_user_id)
@@ -248,7 +252,8 @@ export default function MainScreen() {
                     try {
                         const statusResponse = await apiService.checkMatchmakingStatus()
                         if (statusResponse.success && statusResponse.data?.match_found && statusResponse.data.battle) {
-                            cancelMatchmaking()
+                            // Don't notify server when match is found via polling - we don't want to cancel the match
+                            cancelMatchmaking(false)
                             navigateToMultiplayerBattle(statusResponse.data.battle)
                         }
                     } catch (error) {
@@ -350,11 +355,29 @@ export default function MainScreen() {
     const navigateToMultiplayerBattle = (matchData: MatchFoundData) => {
         if (!currentCharacter || !user?.id) return
 
-        // Determine perspective (am I player1 or player2?)
-        const isPlayer1 = matchData.player1_id === user.id
-        const myCharacter = isPlayer1 ? matchData.player1_character : matchData.player2_character
-        const enemyCharacter = isPlayer1 ? matchData.player2_character : matchData.player1_character
-        const enemyUserId = isPlayer1 ? matchData.player2_id : matchData.player1_id
+        let myCharacter: any
+        let enemyCharacter: any
+        let enemyUserId: string
+
+        // Check if we have the standard format (from backend/updated websocket)
+        if (matchData.player1_character && matchData.player2_character) {
+            // Determine perspective (am I player1 or player2?)
+            const isPlayer1 = matchData.player1_id === user.id
+            myCharacter = isPlayer1 ? matchData.player1_character : matchData.player2_character
+            enemyCharacter = isPlayer1 ? matchData.player2_character : matchData.player1_character
+            enemyUserId = isPlayer1 ? matchData.player2_id : matchData.player1_id
+        }
+        // Check if we have the "old" websocket format (fallback)
+        else if ((matchData as any).player_character && (matchData as any).opponent) {
+            console.log('Using fallback websocket data format')
+            myCharacter = (matchData as any).player_character
+            enemyCharacter = (matchData as any).opponent
+            enemyUserId = (matchData as any).opponent.id
+        } else {
+            console.error('Invalid match data format received:', matchData)
+            alert('Erro ao iniciar batalha: dados inválidos')
+            return
+        }
 
         // Prepare player moves (from backend character for consistency)
         const playerMoves =

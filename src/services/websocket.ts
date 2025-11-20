@@ -190,24 +190,33 @@ class WebSocketService {
 
                     // Handle matchmaking and battle messages
                     if (message.type === 'match_found') {
+                        console.log('[WEBSOCKET] Received match_found message:', JSON.stringify(message, null, 2))
                         this.handleMessage({
                             type: 'match_found',
                             data: message.data,
                             battle_id: message.data?.battle_id,
                         })
                     } else if (message.type === 'battle_attack') {
+                        console.log('[WEBSOCKET] ========================================')
+                        console.log('[WEBSOCKET] Received battle_attack message from WebSocket server')
+                        console.log('[WEBSOCKET] Full message:', JSON.stringify(message, null, 2))
+                        console.log('[WEBSOCKET] Battle ID:', message.battle_id)
+                        console.log('[WEBSOCKET] Attack data:', JSON.stringify(message.data, null, 2))
+                        console.log('[WEBSOCKET] ========================================')
                         this.handleMessage({
                             type: 'battle_attack',
                             data: message.data,
                             battle_id: message.battle_id,
                         })
                     } else if (message.type === 'battle_state_update') {
+                        console.log('[WEBSOCKET] Received battle_state_update:', JSON.stringify(message, null, 2))
                         this.handleMessage({
                             type: 'battle_state_update',
                             data: message.data,
                             battle_id: message.battle_id,
                         })
                     } else if (message.type === 'battle_end') {
+                        console.log('[WEBSOCKET] Received battle_end:', JSON.stringify(message, null, 2))
                         this.handleMessage({
                             type: 'battle_end',
                             data: message.data,
