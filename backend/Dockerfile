@@ -1,8 +1,15 @@
 # Use PHP 8.2 image and install composer manually to ensure PHP version compatibility
 FROM php:8.2-cli AS vendor
 
-# Install composer
+# Install composer and required tools for composer to work
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+# Install git and unzip required by composer
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+    git \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
