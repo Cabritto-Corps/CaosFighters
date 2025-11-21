@@ -3,9 +3,13 @@
 namespace App\Repositories;
 
 use App\Models\Battle;
+use App\Services\BattleService;
 
 class BattleRepository
 {
+    public function __construct(
+        protected BattleService $battleService
+    ) {}
     /**
      * Create a new battle
      */
@@ -141,6 +145,24 @@ class BattleRepository
         $userCharacter = $isPlayer1 ? $battle->character1 : $battle->character2;
         $isWinner = $battle->winner_id === $userId;
 
+        // Calculate current HP for both players
+        $playerHp = $this->battleService->calculateCurrentHP($battleId, $userId);
+        $opponentId = $isPlayer1 ? $battle->player2_id : $battle->player1_id;
+        $opponentHp = $this->battleService->calculateCurrentHP($battleId, $opponentId);
+
+        // Determine waiting status for multiplayer battles
+        $waitingForOpponent = false;
+        if ($battle->is_multiplayer && !$battle->winner_id) {
+            // Check if current user has pending attack but opponent doesn't
+            $userPendingField = $isPlayer1 ? 'player1_pending_attack' : 'player2_pending_attack';
+            $opponentPendingField = $isPlayer1 ? 'player2_pending_attack' : 'player1_pending_attack';
+            $userHasPending = !empty($battle->$userPendingField);
+            $opponentHasPending = !empty($battle->$opponentPendingField);
+            
+            // Waiting if user has pending attack but opponent doesn't
+            $waitingForOpponent = $userHasPending && !$opponentHasPending;
+        }
+
         return [
             'id' => $battle->id,
             'opponent' => [
@@ -171,6 +193,10 @@ class BattleRepository
             'battle_timestamp' => $battle->battle_timestamp->toISOString(),
             'duration' => $battle->duration,
             'battle_log' => $battle->battle_log ?? [],
+            'player_hp' => $playerHp,
+            'opponent_hp' => $opponentHp,
+            'waiting_for_opponent' => $waitingForOpponent,
+            'current_turn_round' => $battle->current_turn_round ?? 0,
         ];
     }
 }

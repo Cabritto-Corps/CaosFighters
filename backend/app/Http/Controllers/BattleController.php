@@ -433,9 +433,29 @@ class BattleController extends Controller
                 $validated['move_id']
             );
 
-            return $result['success']
-                ? ApiResponse::success($result['data'] ?? null, 'Attack executed')
-                : ApiResponse::error($result['message'] ?? 'Failed to execute attack', $result['error'] ?? null);
+            if (!$result['success']) {
+                return ApiResponse::error($result['message'] ?? 'Failed to execute attack', $result['error'] ?? null);
+            }
+
+            // Return full result including waiting_for_opponent and round_complete status
+            $responseData = $result['data'] ?? [];
+            if (isset($result['waiting_for_opponent'])) {
+                $responseData['waiting_for_opponent'] = $result['waiting_for_opponent'];
+            }
+            if (isset($result['round_complete'])) {
+                $responseData['round_complete'] = $result['round_complete'];
+            }
+            if (isset($result['round_results'])) {
+                $responseData['round_results'] = $result['round_results'];
+            }
+            if (isset($result['battle_ended'])) {
+                $responseData['battle_ended'] = $result['battle_ended'];
+            }
+            if (isset($result['winner_id'])) {
+                $responseData['winner_id'] = $result['winner_id'];
+            }
+
+            return ApiResponse::success($responseData, $result['message'] ?? 'Attack executed');
         } catch (\Exception $e) {
             return ApiResponse::serverError('Failed to execute attack', $e->getMessage());
         }

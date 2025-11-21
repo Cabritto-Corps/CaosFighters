@@ -20,6 +20,9 @@ use Carbon\Carbon;
  * @property array|null $battle_log
  * @property \Carbon\Carbon $battle_timestamp
  * @property bool $is_multiplayer
+ * @property array|null $player1_pending_attack
+ * @property array|null $player2_pending_attack
+ * @property int $current_turn_round
  * @property \Carbon\Carbon $created_at
  *
  * @property-read \App\Models\User $player1
@@ -66,6 +69,9 @@ class Battle extends Model
         'battle_log',
         'battle_timestamp',
         'is_multiplayer',
+        'player1_pending_attack',
+        'player2_pending_attack',
+        'current_turn_round',
     ];
 
     /**
@@ -81,6 +87,9 @@ class Battle extends Model
             'battle_timestamp' => 'datetime',
             'created_at' => 'datetime',
             'is_multiplayer' => 'boolean',
+            'player1_pending_attack' => 'array',
+            'player2_pending_attack' => 'array',
+            'current_turn_round' => 'integer',
         ];
     }
 

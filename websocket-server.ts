@@ -98,6 +98,8 @@ interface ErrorPayload {
 }
 
 type OutgoingMessage =
+    | { type: 'battle_round_complete'; battle_id: string; data: { battle_id: string; round_results: unknown; battle_ended: boolean; winner_id: string | null } }
+    |
     | MatchFoundPayload
     | MatchmakingQueuedPayload
     | ErrorPayload
@@ -469,6 +471,34 @@ async function handleLeaveBattle(client: Client, data: unknown): Promise<void> {
 interface AttackResponse {
     success: boolean
     message?: string
+    waiting_for_opponent?: boolean
+    round_complete?: boolean
+    round_results?: {
+        player1_attack?: {
+            attacker_id: string
+            defender_id: string
+            move_id: string
+            move_name: string
+            damage: number
+            hit: boolean
+            defender_current_hp: number
+            battle_ended: boolean
+            winner_id: string | null
+        }
+        player2_attack?: {
+            attacker_id: string
+            defender_id: string
+            move_id: string
+            move_name: string
+            damage: number
+            hit: boolean
+            defender_current_hp: number
+            battle_ended: boolean
+            winner_id: string | null
+        }
+    }
+    battle_ended?: boolean
+    winner_id?: string | null
     data?: {
         move_name: string
         damage: number
@@ -476,6 +506,10 @@ interface AttackResponse {
         turn: string
         is_finished: boolean
         winner_id: string | null
+        waiting_for_opponent?: boolean
+        round_complete?: boolean
+        player1_attack?: unknown
+        player2_attack?: unknown
     }
 }
 
@@ -525,6 +559,61 @@ async function handleBattleAttack(client: Client, moveId: string): Promise<void>
             return
         }
 
+        // Find opponent
+        const opponentClient = Array.from(clients.values()).find(
+            (c) => c.battleId === client.battleId && c.userId !== client.userId && c.userId !== null
+        )
+
+        // Handle round complete (both attacks processed)
+        if (result.round_complete && result.round_results) {
+            const roundResults = result.round_results
+            const battleEnded = result.battle_ended || false
+            const winnerId = result.winner_id || null
+
+            // Send round complete to both players
+            const roundCompleteMessage = {
+                type: 'battle_round_complete' as const,
+                battle_id: client.battleId,
+                data: {
+                    battle_id: client.battleId,
+                    round_results: roundResults,
+                    battle_ended: battleEnded,
+                    winner_id: winnerId,
+                },
+            }
+
+            send(client.ws, roundCompleteMessage)
+            if (opponentClient) {
+                send(opponentClient.ws, roundCompleteMessage)
+            }
+
+            console.log(`[WEBSOCKET] Round complete broadcasted to both players`)
+            console.log(`[WEBSOCKET] ========================================`)
+            return
+        }
+
+        // Handle pending attack (waiting for opponent)
+        if (result.waiting_for_opponent || result.data?.waiting_for_opponent) {
+            // Confirm to attacker that attack is queued
+            send(client.ws, {
+                type: 'battle_attack',
+                battle_id: client.battleId,
+                data: {
+                    battle_id: client.battleId,
+                    attacker_id: client.userId,
+                    move_id: moveId,
+                    move_name: result.data?.move_name || 'Unknown',
+                    damage: result.data?.damage || 0,
+                    waiting_for_opponent: true,
+                },
+            })
+
+            console.log(`[WEBSOCKET] Attack queued, waiting for opponent`)
+            console.log(`[WEBSOCKET] ========================================`)
+            return
+        }
+
+        // Handle single attack (bot battle or legacy)
         if (!result.data) {
             console.error(`[WEBSOCKET] Attack succeeded but no data returned`)
             sendError(client.ws, 'Attack succeeded but no data returned')
@@ -532,11 +621,6 @@ async function handleBattleAttack(client: Client, moveId: string): Promise<void>
         }
 
         const attackData = result.data
-
-        // Find opponent and notify them
-        const opponentClient = Array.from(clients.values()).find(
-            (c) => c.battleId === client.battleId && c.userId !== client.userId && c.userId !== null
-        )
 
         console.log(`[WEBSOCKET] Opponent lookup:`, {
             found: !!opponentClient,

@@ -358,9 +358,186 @@ export default function BattleScreen() {
             }
 
             switch (message.type) {
+                case 'battle_round_complete':
+                    if (message.data) {
+                        const roundData = message.data as {
+                            battle_id: string
+                            round_results: {
+                                player1_attack?: {
+                                    attacker_id: string
+                                    defender_id: string
+                                    move_name: string
+                                    damage: number
+                                    hit: boolean
+                                    defender_current_hp: number
+                                    battle_ended: boolean
+                                    winner_id: string | null
+                                }
+                                player2_attack?: {
+                                    attacker_id: string
+                                    defender_id: string
+                                    move_name: string
+                                    damage: number
+                                    hit: boolean
+                                    defender_current_hp: number
+                                    battle_ended: boolean
+                                    winner_id: string | null
+                                }
+                            }
+                            battle_ended: boolean
+                            winner_id: string | null
+                        }
+
+                        const roundResults = roundData.round_results
+                        const player1Attack = roundResults.player1_attack
+                        const player2Attack = roundResults.player2_attack
+
+                        // Process player1 attack first
+                        if (player1Attack) {
+                            const isPlayer1 = player1Attack.attacker_id === currentPlayerId
+                            const isDefender = player1Attack.defender_id === currentPlayerId
+
+                            if (isPlayer1) {
+                                // Player attacked opponent
+                                if (player1Attack.hit && player1Attack.damage > 0) {
+                                    setCurrentDamage(player1Attack.damage)
+                                    animateAttack('player', 'enemy', player1Attack.damage)
+                                    setBattleLog((prev) => [
+                                        ...prev,
+                                        `Você usou ${player1Attack.move_name} e causou ${player1Attack.damage} de dano!`,
+                                    ])
+                                } else {
+                                    setBattleLog((prev) => [
+                                        ...prev,
+                                        `Você usou ${player1Attack.move_name} mas errou!`,
+                                    ])
+                                }
+                                setEnemyHP(player1Attack.defender_current_hp)
+                            } else if (isDefender) {
+                                // Opponent attacked player
+                                if (player1Attack.hit && player1Attack.damage > 0) {
+                                    setCurrentDamage(player1Attack.damage)
+                                    animateAttack('enemy', 'player', player1Attack.damage)
+                                    setBattleLog((prev) => [
+                                        ...prev,
+                                        `Oponente usou ${player1Attack.move_name} e causou ${player1Attack.damage} de dano!`,
+                                    ])
+                                } else {
+                                    setBattleLog((prev) => [
+                                        ...prev,
+                                        `Oponente usou ${player1Attack.move_name} mas errou!`,
+                                    ])
+                                }
+                                setPlayerHP(player1Attack.defender_current_hp)
+                            }
+
+                            // Check if battle ended after player1 attack
+                            if (player1Attack.battle_ended) {
+                                setBattleEnded(true)
+                                setWinner(player1Attack.winner_id === currentPlayerId ? 'player' : 'enemy')
+                                setIsProcessingAction(false)
+                                setWaitingForOpponent(false)
+                                if (battlePollingIntervalRef.current) {
+                                    clearInterval(battlePollingIntervalRef.current)
+                                    battlePollingIntervalRef.current = null
+                                }
+                                if (isMultiplayerRef.current && currentBattleId) {
+                                    setTimeout(() => {
+                                        websocketService.leaveBattle(currentBattleId)
+                                    }, 3000)
+                                }
+                                if (player1Attack.winner_id === currentPlayerId) {
+                                    setBattleLog((prev) => [...prev, 'Você venceu!'])
+                                } else {
+                                    setBattleLog((prev) => [...prev, 'Você perdeu!'])
+                                }
+                                return // Battle ended, don't process player2 attack
+                            }
+                        }
+
+                        // Process player2 attack
+                        if (player2Attack) {
+                            const isPlayer2 = player2Attack.attacker_id === currentPlayerId
+                            const isDefender = player2Attack.defender_id === currentPlayerId
+
+                            if (isPlayer2) {
+                                // Player attacked opponent
+                                if (player2Attack.hit && player2Attack.damage > 0) {
+                                    setCurrentDamage(player2Attack.damage)
+                                    animateAttack('player', 'enemy', player2Attack.damage)
+                                    setBattleLog((prev) => [
+                                        ...prev,
+                                        `Você usou ${player2Attack.move_name} e causou ${player2Attack.damage} de dano!`,
+                                    ])
+                                } else {
+                                    setBattleLog((prev) => [
+                                        ...prev,
+                                        `Você usou ${player2Attack.move_name} mas errou!`,
+                                    ])
+                                }
+                                setEnemyHP(player2Attack.defender_current_hp)
+                            } else if (isDefender) {
+                                // Opponent attacked player
+                                if (player2Attack.hit && player2Attack.damage > 0) {
+                                    setCurrentDamage(player2Attack.damage)
+                                    animateAttack('enemy', 'player', player2Attack.damage)
+                                    setBattleLog((prev) => [
+                                        ...prev,
+                                        `Oponente usou ${player2Attack.move_name} e causou ${player2Attack.damage} de dano!`,
+                                    ])
+                                } else {
+                                    setBattleLog((prev) => [
+                                        ...prev,
+                                        `Oponente usou ${player2Attack.move_name} mas errou!`,
+                                    ])
+                                }
+                                setPlayerHP(player2Attack.defender_current_hp)
+                            }
+
+                            // Check if battle ended after player2 attack
+                            if (player2Attack.battle_ended) {
+                                setBattleEnded(true)
+                                setWinner(player2Attack.winner_id === currentPlayerId ? 'player' : 'enemy')
+                                setIsProcessingAction(false)
+                                setWaitingForOpponent(false)
+                                if (battlePollingIntervalRef.current) {
+                                    clearInterval(battlePollingIntervalRef.current)
+                                    battlePollingIntervalRef.current = null
+                                }
+                                if (isMultiplayerRef.current && currentBattleId) {
+                                    setTimeout(() => {
+                                        websocketService.leaveBattle(currentBattleId)
+                                    }, 3000)
+                                }
+                                if (player2Attack.winner_id === currentPlayerId) {
+                                    setBattleLog((prev) => [...prev, 'Você venceu!'])
+                                } else {
+                                    setBattleLog((prev) => [...prev, 'Você perdeu!'])
+                                }
+                                return
+                            }
+                        }
+
+                        // Round complete, unlock input for next round
+                        setTurn('player')
+                        setIsProcessingAction(false)
+                        setWaitingForOpponent(false)
+                    }
+                    break
                 case 'battle_attack':
                     if (message.data) {
-                        const attackData = message.data as BattleAttackWebSocketData
+                        const attackData = message.data as BattleAttackWebSocketData & {
+                            waiting_for_opponent?: boolean
+                        }
+
+                        // If attack is pending (waiting for opponent), just confirm it was queued
+                        if (attackData.waiting_for_opponent) {
+                            setWaitingForOpponent(true)
+                            setTurn('enemy')
+                            // Keep isProcessingAction true - don't unlock until round completes
+                            return
+                        }
+
                         const isPlayerAttack = attackData.attacker_id === currentPlayerId
 
                         if (isPlayerAttack) {

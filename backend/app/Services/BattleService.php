@@ -121,6 +121,175 @@ class BattleService implements BattleServiceInterface
     }
 
     /**
+     * Calculate current HP for a player based on battle_log
+     * Sums all damage received by the player from battle_log
+     */
+    public function calculateCurrentHP(string $battleId, string $playerId): int
+    {
+        try {
+            $battle = Battle::find($battleId);
+            
+            if (!$battle) {
+                return 100; // Default HP if battle not found
+            }
+
+            // Determine which character belongs to this player
+            $isPlayer1 = $playerId === $battle->player1_id;
+            $playerCharacterId = $isPlayer1 ? $battle->character1_id : $battle->character2_id;
+            $opponentCharacterId = $isPlayer1 ? $battle->character2_id : $battle->character1_id;
+
+            // Get initial HP from CharacterUser status
+            $playerAssignment = CharacterUser::where('character_id', $playerCharacterId)->first();
+            $initialHp = $playerAssignment ? ($playerAssignment->status['hp'] ?? 100) : 100;
+
+            // Sum all damage received by this player from battle_log
+            $battleLog = $battle->battle_log ?? [];
+            $totalDamageReceived = 0;
+
+            foreach ($battleLog as $logEntry) {
+                // Check if this attack targeted the current player
+                // An attack targets the opponent, so if attacker_id is opponent, damage is received
+                $attackerId = $logEntry['attacker_id'] ?? null;
+                if (!$attackerId) {
+                    continue;
+                }
+
+                // Determine which character the attacker belongs to
+                $attackerIsPlayer1 = $attackerId === $battle->player1_id;
+                $attackerCharacterId = $attackerIsPlayer1 ? $battle->character1_id : $battle->character2_id;
+
+                // If attacker is opponent, this player received damage
+                if ($attackerCharacterId === $opponentCharacterId) {
+                    $damage = $logEntry['damage'] ?? 0;
+                    $totalDamageReceived += $damage;
+                }
+            }
+
+            // Calculate current HP (cannot go below 0)
+            $currentHp = max(0, $initialHp - $totalDamageReceived);
+
+            return $currentHp;
+        } catch (\Exception $e) {
+            Log::error('Failed to calculate current HP', [
+                'battle_id' => $battleId,
+                'player_id' => $playerId,
+                'error' => $e->getMessage()
+            ]);
+            return 100; // Default HP on error
+        }
+    }
+
+    /**
+     * Process a single attack (used internally when processing queued attacks)
+     */
+    private function processSingleAttack(Battle $battle, string $attackerId, string $moveId, int $damage, bool $hit): array
+    {
+        // Determine defender
+        $defenderId = $attackerId === $battle->player1_id ? $battle->player2_id : $battle->player1_id;
+        
+        // Get move details for name
+        $move = Move::find($moveId);
+        $moveName = $move ? $move->move_name : 'Unknown Move';
+
+        // Update battle log
+        $battleLog = $battle->battle_log ?? [];
+        $battleLog[] = [
+            'attacker_id' => $attackerId,
+            'move_id' => $moveId,
+            'move_name' => $moveName,
+            'damage' => $damage,
+            'hit' => $hit,
+            'timestamp' => now()->toIso8601String(),
+        ];
+
+        $battle->update(['battle_log' => $battleLog]);
+
+        // Calculate defender's current HP after this attack
+        $defenderCurrentHp = $this->calculateCurrentHP($battle->id, $defenderId);
+
+        // Check if battle ended
+        $battleEnded = $defenderCurrentHp <= 0;
+        $winnerId = $battleEnded ? $attackerId : null;
+
+        // Update battle if ended
+        if ($battleEnded && !$battle->winner_id) {
+            $battle->update(['winner_id' => $winnerId]);
+        }
+
+        return [
+            'attacker_id' => $attackerId,
+            'defender_id' => $defenderId,
+            'move_id' => $moveId,
+            'move_name' => $moveName,
+            'damage' => $damage,
+            'hit' => $hit,
+            'defender_current_hp' => $defenderCurrentHp,
+            'battle_ended' => $battleEnded,
+            'winner_id' => $winnerId,
+        ];
+    }
+
+    /**
+     * Process both pending attacks when both players have attacked
+     */
+    private function processBothAttacks(Battle $battle): array
+    {
+        $player1Attack = $battle->player1_pending_attack;
+        $player2Attack = $battle->player2_pending_attack;
+
+        $results = [];
+
+        // Process player1 attack first, then player2
+        if ($player1Attack) {
+            $result1 = $this->processSingleAttack(
+                $battle,
+                $battle->player1_id,
+                $player1Attack['move_id'],
+                $player1Attack['damage'],
+                $player1Attack['hit']
+            );
+            $results['player1_attack'] = $result1;
+
+            // Reload battle to get updated state
+            $battle->refresh();
+
+            // If battle ended after player1 attack, don't process player2 attack
+            if ($result1['battle_ended']) {
+                // Clear pending attacks
+                $battle->update([
+                    'player1_pending_attack' => null,
+                    'player2_pending_attack' => null,
+                ]);
+                return $results;
+            }
+        }
+
+        // Process player2 attack
+        if ($player2Attack) {
+            $result2 = $this->processSingleAttack(
+                $battle,
+                $battle->player2_id,
+                $player2Attack['move_id'],
+                $player2Attack['damage'],
+                $player2Attack['hit']
+            );
+            $results['player2_attack'] = $result2;
+
+            // Reload battle to get updated state
+            $battle->refresh();
+        }
+
+        // Clear pending attacks and increment round
+        $battle->update([
+            'player1_pending_attack' => null,
+            'player2_pending_attack' => null,
+            'current_turn_round' => ($battle->current_turn_round ?? 0) + 1,
+        ]);
+
+        return $results;
+    }
+
+    /**
      * Process an attack in a battle
      */
     public function executeAttack(string $battleId, string $attackerId, string $moveId): array
@@ -132,6 +301,14 @@ class BattleService implements BattleServiceInterface
                 return [
                     'success' => false,
                     'message' => 'Battle not found'
+                ];
+            }
+
+            // Check if battle has already ended
+            if ($battle->winner_id) {
+                return [
+                    'success' => false,
+                    'message' => 'Battle has already ended'
                 ];
             }
 
@@ -150,91 +327,128 @@ class BattleService implements BattleServiceInterface
 
             // Determine if attack hits
             $accuracy = $move->move_info['accuracy'] ?? 100;
-            if (rand(1, 100) > $accuracy) {
-                Log::info('Attack missed', [
-                    'battle_id' => $battleId,
+            $hit = rand(1, 100) <= $accuracy;
+            $actualDamage = $hit ? $damage : 0;
+
+            // For multiplayer battles, queue the attack instead of processing immediately
+            if ($battle->is_multiplayer) {
+                $isPlayer1 = $attackerId === $battle->player1_id;
+                $pendingField = $isPlayer1 ? 'player1_pending_attack' : 'player2_pending_attack';
+                $opponentPendingField = $isPlayer1 ? 'player2_pending_attack' : 'player1_pending_attack';
+
+                // Store pending attack
+                $pendingAttack = [
                     'attacker_id' => $attackerId,
                     'move_id' => $moveId,
-                ]);
+                    'move_name' => $move->move_name,
+                    'damage' => $actualDamage,
+                    'hit' => $hit,
+                    'timestamp' => now()->toIso8601String(),
+                ];
+
+                $updateData = [$pendingField => $pendingAttack];
+                $battle->update($updateData);
+                $battle->refresh();
+
+                // Check if both players have pending attacks
+                $hasBothAttacks = $battle->player1_pending_attack && $battle->player2_pending_attack;
+
+                if ($hasBothAttacks) {
+                    // Process both attacks
+                    $roundResults = $this->processBothAttacks($battle);
+                    $battle->refresh();
+
+                    // Determine if battle ended
+                    $battleEnded = false;
+                    $winnerId = null;
+                    if (isset($roundResults['player1_attack']['battle_ended']) && $roundResults['player1_attack']['battle_ended']) {
+                        $battleEnded = true;
+                        $winnerId = $roundResults['player1_attack']['winner_id'];
+                    } elseif (isset($roundResults['player2_attack']['battle_ended']) && $roundResults['player2_attack']['battle_ended']) {
+                        $battleEnded = true;
+                        $winnerId = $roundResults['player2_attack']['winner_id'];
+                    }
+
+                    // Return results for both attacks
+                    return [
+                        'success' => true,
+                        'waiting_for_opponent' => false,
+                        'round_complete' => true,
+                        'round_results' => $roundResults,
+                        'battle_ended' => $battleEnded,
+                        'winner_id' => $winnerId,
+                        'data' => [
+                            'round_complete' => true,
+                            'player1_attack' => $roundResults['player1_attack'] ?? null,
+                            'player2_attack' => $roundResults['player2_attack'] ?? null,
+                            'battle_ended' => $battleEnded,
+                            'winner_id' => $winnerId,
+                        ],
+                    ];
+                } else {
+                    // Attack is pending, waiting for opponent
+                    return [
+                        'success' => true,
+                        'waiting_for_opponent' => true,
+                        'message' => 'Attack queued, waiting for opponent',
+                        'data' => [
+                            'attacker_id' => $attackerId,
+                            'move_id' => $moveId,
+                            'move_name' => $move->move_name,
+                            'damage' => $actualDamage,
+                            'hit' => $hit,
+                            'waiting_for_opponent' => true,
+                        ],
+                    ];
+                }
+            } else {
+                // Bot battle - process immediately (existing logic)
+                if (!$hit) {
+                    Log::info('Attack missed', [
+                        'battle_id' => $battleId,
+                        'attacker_id' => $attackerId,
+                        'move_id' => $moveId,
+                    ]);
+
+                    return [
+                        'success' => true,
+                        'damage' => 0,
+                        'hit' => false,
+                        'message' => 'Attack missed!',
+                        'waiting_for_opponent' => false,
+                        'data' => [
+                            'damage' => 0,
+                            'move_name' => $move->move_name,
+                            'enemy_current_hp' => null,
+                            'is_finished' => false,
+                            'winner_id' => null,
+                        ],
+                    ];
+                }
+
+                // Process attack for bot battle
+                $result = $this->processSingleAttack($battle, $attackerId, $moveId, $actualDamage, $hit);
+                $battle->refresh();
 
                 return [
                     'success' => true,
-                    'damage' => 0,
-                    'hit' => false,
-                    'message' => 'Attack missed!',
-                    'turn' => $attackerId === $battle->player1_id ? 'enemy' : 'player',
+                    'damage' => $result['damage'],
+                    'hit' => $result['hit'],
+                    'message' => $result['hit'] ? "Attack dealt {$result['damage']} damage!" : 'Attack missed!',
+                    'waiting_for_opponent' => false,
+                    'move_name' => $result['move_name'],
+                    'enemy_current_hp' => $result['defender_current_hp'],
+                    'is_finished' => $result['battle_ended'],
+                    'winner_id' => $result['winner_id'],
                     'data' => [
-                        'damage' => 0,
-                        'move_name' => $move->move_name,
-                        'enemy_current_hp' => null, // No damage dealt
-                        'turn' => $attackerId === $battle->player1_id ? 'enemy' : 'player',
-                        'is_finished' => false,
-                        'winner_id' => null,
+                        'damage' => $result['damage'],
+                        'move_name' => $result['move_name'],
+                        'enemy_current_hp' => $result['defender_current_hp'],
+                        'is_finished' => $result['battle_ended'],
+                        'winner_id' => $result['winner_id'],
                     ],
                 ];
             }
-
-            // Update battle log
-            $battleLog = $battle->battle_log ?? [];
-            $battleLog[] = [
-                'attacker_id' => $attackerId,
-                'move_id' => $moveId,
-                'move_name' => $move->move_name,
-                'damage' => $damage,
-                'timestamp' => now()->toIso8601String(),
-            ];
-
-            $battle->update(['battle_log' => $battleLog]);
-
-            $nextTurn = $attackerId === $battle->player1_id ? 'enemy' : 'player';
-
-            // Get attacker and defender character assignments for HP calculation
-            $attackerCharacterId = $attackerId === $battle->player1_id
-                ? $battle->character1_id
-                : $battle->character2_id;
-            $defenderCharacterId = $attackerId === $battle->player1_id
-                ? $battle->character2_id
-                : $battle->character1_id;
-
-            $attackerAssignment = CharacterUser::where('character_id', $attackerCharacterId)->first();
-            $defenderAssignment = CharacterUser::where('character_id', $defenderCharacterId)->first();
-
-            // Calculate current HP (simplified - in real implementation, track HP in battle state)
-            $defenderCurrentHp = $defenderAssignment ? ($defenderAssignment->status['hp'] ?? 100) - $damage : 100 - $damage;
-            $defenderCurrentHp = max(0, $defenderCurrentHp);
-
-            // Check if battle ended
-            $battleEnded = $defenderCurrentHp <= 0;
-            $winnerId = $battleEnded ? $attackerId : null;
-
-            Log::info('Attack executed', [
-                'battle_id' => $battleId,
-                'attacker_id' => $attackerId,
-                'move_id' => $moveId,
-                'damage' => $damage,
-                'next_turn' => $nextTurn,
-                'battle_ended' => $battleEnded,
-            ]);
-
-            return [
-                'success' => true,
-                'damage' => $damage,
-                'hit' => true,
-                'turn' => $nextTurn,
-                'message' => "Attack dealt {$damage} damage!",
-                'move_name' => $move->move_name,
-                'enemy_current_hp' => $defenderCurrentHp,
-                'is_finished' => $battleEnded,
-                'winner_id' => $winnerId,
-                'data' => [
-                    'damage' => $damage,
-                    'move_name' => $move->move_name,
-                    'enemy_current_hp' => $defenderCurrentHp,
-                    'turn' => $nextTurn,
-                    'is_finished' => $battleEnded,
-                    'winner_id' => $winnerId,
-                ],
-            ];
         } catch (\Exception $e) {
             Log::error('Failed to execute attack', [
                 'battle_id' => $battleId,
