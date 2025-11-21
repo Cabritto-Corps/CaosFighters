@@ -28,11 +28,12 @@ interface Client {
 }
 
 interface WebSocketMessage {
-    type: 'auth' | 'join_matchmaking' | 'leave_matchmaking' | 'battle_attack'
+    type: 'auth' | 'join_matchmaking' | 'leave_matchmaking' | 'battle_attack' | 'leave_battle'
     data?: {
         user_id?: string
         character_user_id?: string
         move_id?: string
+        battle_id?: string
     }
 }
 
@@ -96,7 +97,13 @@ interface ErrorPayload {
     message: string
 }
 
-type OutgoingMessage = MatchFoundPayload | MatchmakingQueuedPayload | ErrorPayload | { type: 'auth_success'; message: string } | { type: 'battle_attack'; battle_id: string; data: unknown }
+type OutgoingMessage =
+    | MatchFoundPayload
+    | MatchmakingQueuedPayload
+    | ErrorPayload
+    | { type: 'auth_success'; message: string }
+    | { type: 'battle_attack'; battle_id: string; data: unknown }
+    | { type: 'battle_end'; battle_id: string; data: { message: string; winner_id: string | null } }
 
 // ============================================================================
 // Client Management
@@ -427,6 +434,34 @@ async function handleLeaveMatchmaking(client: Client): Promise<void> {
     }
 }
 
+async function handleLeaveBattle(client: Client, data: unknown): Promise<void> {
+    const dataObj = data as { battle_id?: string } | undefined
+    const battleId = dataObj?.battle_id || client.battleId
+
+    if (!battleId) {
+        return
+    }
+
+    // Find opponent and notify them
+    const opponent = Array.from(clients.values()).find(
+        (c: Client) => c.userId && c.battleId === battleId && c.userId !== client.userId
+    )
+
+    if (opponent) {
+        send(opponent.ws, {
+            type: 'battle_end',
+            battle_id: battleId,
+            data: {
+                message: 'Oponente saiu da batalha',
+                winner_id: opponent.userId || null,
+            },
+        })
+    }
+
+    // Clear battle reference
+    client.battleId = null
+}
+
 // ============================================================================
 // Battle Logic
 // ============================================================================
@@ -593,6 +628,10 @@ async function handleMessage(client: Client, message: WebSocketMessage): Promise
 
         case 'leave_matchmaking':
             await handleLeaveMatchmaking(client)
+            break
+
+        case 'leave_battle':
+            await handleLeaveBattle(client, message.data)
             break
 
         case 'battle_attack':

@@ -181,51 +181,37 @@ class WebSocketService {
             this.ws.onmessage = (event) => {
                 try {
                     const message = JSON.parse(event.data)
-                    console.log('[WEBSOCKET] Received message:', message.type)
 
                     if (message.type === 'auth_success') {
-                        console.log('[WEBSOCKET] Authentication successful')
                         return
                     }
 
                     // Handle matchmaking and battle messages
                     if (message.type === 'match_found') {
-                        console.log('[WEBSOCKET] Received match_found message:', JSON.stringify(message, null, 2))
                         this.handleMessage({
                             type: 'match_found',
                             data: message.data,
                             battle_id: message.data?.battle_id,
                         })
                     } else if (message.type === 'battle_attack') {
-                        console.log('[WEBSOCKET] ========================================')
-                        console.log('[WEBSOCKET] Received battle_attack message from WebSocket server')
-                        console.log('[WEBSOCKET] Full message:', JSON.stringify(message, null, 2))
-                        console.log('[WEBSOCKET] Battle ID:', message.battle_id)
-                        console.log('[WEBSOCKET] Attack data:', JSON.stringify(message.data, null, 2))
-                        console.log('[WEBSOCKET] ========================================')
                         this.handleMessage({
                             type: 'battle_attack',
                             data: message.data,
                             battle_id: message.battle_id,
                         })
                     } else if (message.type === 'battle_state_update') {
-                        console.log('[WEBSOCKET] Received battle_state_update:', JSON.stringify(message, null, 2))
                         this.handleMessage({
                             type: 'battle_state_update',
                             data: message.data,
                             battle_id: message.battle_id,
                         })
                     } else if (message.type === 'battle_end') {
-                        console.log('[WEBSOCKET] Received battle_end:', JSON.stringify(message, null, 2))
                         this.handleMessage({
                             type: 'battle_end',
                             data: message.data,
                             battle_id: message.battle_id,
                         })
-                    } else if (message.type === 'matchmaking_queued') {
-                        console.log('[WEBSOCKET] Matchmaking queued:', message.queue_position)
                     } else if (message.type === 'error') {
-                        console.error('[WEBSOCKET] Error from server:', message.message)
                         // Propagate error to handlers so frontend can handle it
                         this.handleMessage({
                             type: 'error',
@@ -410,6 +396,23 @@ class WebSocketService {
     /**
      * Unsubscribe from battle channel
      */
+    /**
+     * Leave battle and notify server
+     */
+    leaveBattle(battleId: string): void {
+        if (this.useCustomWebSocket && this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(
+                JSON.stringify({
+                    type: 'leave_battle',
+                    data: {
+                        battle_id: battleId,
+                    },
+                })
+            )
+        }
+        this.unsubscribeFromBattle(battleId)
+    }
+
     unsubscribeFromBattle(battleId: string): void {
         const channelName = `private-battle.${battleId}`
         const channel = this.channels.get(channelName)
@@ -427,7 +430,7 @@ class WebSocketService {
             try {
                 handler(message)
             } catch (error) {
-                console.error('Error in message handler:', error)
+                console.error('[WEBSOCKET] Error in message handler:', error)
             }
         })
     }
