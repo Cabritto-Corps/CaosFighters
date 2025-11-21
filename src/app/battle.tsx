@@ -248,6 +248,20 @@ export default function BattleScreen() {
                     setIsProcessingAction(false)
                 }
                 break
+            case 'error':
+                console.error(`[BATTLE] ========================================`)
+                console.error(`[BATTLE] Error received from WebSocket server`)
+                console.error(`[BATTLE] Error message: ${message.message}`)
+                console.error(`[BATTLE] Battle ID: ${message.battle_id}`)
+                console.error(`[BATTLE] ========================================`)
+                // Unlock input if attack failed (e.g., not player's turn)
+                if (message.battle_id === params.battleId && isProcessingAction) {
+                    console.log(`[BATTLE] Unlocking input due to error - attack may have failed`)
+                    setIsProcessingAction(false)
+                    // Don't change turn - keep current turn state
+                    setBattleLog((prev) => [...prev, `Erro: ${message.message || 'Falha ao executar ataque'}`])
+                }
+                break
         }
     }
 
@@ -490,8 +504,7 @@ export default function BattleScreen() {
         setIsProcessingAction(true)
 
         if (isMultiplayer) {
-            // Multiplayer mode - send attack via HTTP API
-            // Backend will broadcast result via WebSocket
+            // Multiplayer mode - send attack via WebSocket if using custom server, otherwise HTTP API
             const battleId = params.battleId as string
             try {
                 console.log(`[BATTLE] ========================================`)
@@ -501,17 +514,28 @@ export default function BattleScreen() {
                 console.log(`[BATTLE] Move Name: ${attack.name}`)
                 console.log(`[BATTLE] Current turn: ${turn}`)
                 console.log(`[BATTLE] Player ID: ${params.playerId}`)
+                console.log(`[BATTLE] WebSocket connected: ${websocketService.isConnected()}`)
                 console.log(`[BATTLE] ========================================`)
 
                 // Update last WebSocket message time optimistically (we expect a response soon)
                 lastWebSocketMessageRef.current = Date.now()
 
-                const attackResponse = await apiService.executeAttack(battleId, attack.id.toString())
-                console.log(`[BATTLE] Attack API response received:`, JSON.stringify(attackResponse, null, 2))
-
-                setWaitingForOpponent(true)
-                setTurn('enemy') // Optimistically set turn, will be confirmed by server
-                console.log(`[BATTLE] Turn optimistically set to 'enemy', waiting for WebSocket confirmation`)
+                // If using custom WebSocket server, send via WebSocket
+                // Otherwise, use HTTP API (Reverb will broadcast events)
+                if (websocketService.isConnected()) {
+                    console.log(`[BATTLE] Sending attack via WebSocket`)
+                    websocketService.sendAttack(battleId, attack.id.toString())
+                    setWaitingForOpponent(true)
+                    setTurn('enemy') // Optimistically set turn, will be confirmed by server
+                    console.log(`[BATTLE] Attack sent via WebSocket, waiting for confirmation`)
+                } else {
+                    console.log(`[BATTLE] WebSocket not connected, using HTTP API`)
+                    const attackResponse = await apiService.executeAttack(battleId, attack.id.toString())
+                    console.log(`[BATTLE] Attack API response received:`, JSON.stringify(attackResponse, null, 2))
+                    setWaitingForOpponent(true)
+                    setTurn('enemy') // Optimistically set turn, will be confirmed by server
+                    console.log(`[BATTLE] Turn optimistically set to 'enemy', waiting for WebSocket confirmation`)
+                }
             } catch (error) {
                 console.error(`[BATTLE] ========================================`)
                 console.error(`[BATTLE] Failed to execute attack:`, error)

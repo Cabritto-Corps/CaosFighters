@@ -165,12 +165,28 @@ async function callBackend<T = unknown>(
         })
 
         if (!response.ok) {
-            const errorText = await response.text()
-            console.error(`[WEBSOCKET] HTTP error ${response.status}:`, errorText)
+            const contentType = response.headers.get('content-type')
+            let errorData: any = {}
+
+            // Try to parse JSON error response if available
+            if (contentType && contentType.includes('application/json')) {
+                try {
+                    errorData = await response.json()
+                } catch {
+                    // If JSON parse fails, use text
+                    const errorText = await response.text()
+                    errorData = { error: errorText }
+                }
+            } else {
+                const errorText = await response.text()
+                errorData = { error: errorText }
+            }
+
+            console.error(`[WEBSOCKET] HTTP error ${response.status}:`, errorData)
             return {
                 success: false,
-                message: `HTTP ${response.status}`,
-                error: errorText,
+                message: errorData.message || `HTTP ${response.status}`,
+                error: errorData.error || errorData.message || `HTTP ${response.status}`,
             }
         }
 
@@ -456,6 +472,8 @@ async function handleBattleAttack(client: Client, moveId: string): Promise<void>
         console.log(`[WEBSOCKET] Backend attack response:`, {
             success: result.success,
             hasData: !!result.data,
+            message: result.message,
+            error: result.error,
             moveName: result.data?.move_name,
             damage: result.data?.damage,
             enemyCurrentHp: result.data?.enemy_current_hp,
@@ -464,9 +482,17 @@ async function handleBattleAttack(client: Client, moveId: string): Promise<void>
             winnerId: result.data?.winner_id,
         })
 
-        if (!result.success || !result.data) {
-            console.error(`[WEBSOCKET] Attack failed:`, result.message || 'Unknown error')
-            sendError(client.ws, result.message || 'Attack failed')
+        if (!result.success) {
+            const errorMessage = result.message || result.error || 'Attack failed - invalid turn or battle state'
+            console.error(`[WEBSOCKET] Attack failed:`, errorMessage)
+            console.error(`[WEBSOCKET] Full error response:`, JSON.stringify(result, null, 2))
+            sendError(client.ws, errorMessage)
+            return
+        }
+
+        if (!result.data) {
+            console.error(`[WEBSOCKET] Attack succeeded but no data returned`)
+            sendError(client.ws, 'Attack succeeded but no data returned')
             return
         }
 
