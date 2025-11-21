@@ -154,7 +154,16 @@ export default function BattleScreen() {
     }, [])
 
     const handleWebSocketMessage = (message: WebSocketMessage) => {
+        console.log(`[BATTLE] ========================================`)
+        console.log(`[BATTLE] handleWebSocketMessage called`)
+        console.log(`[BATTLE] Message battle_id: ${message.battle_id}`)
+        console.log(`[BATTLE] Params battleId: ${params.battleId}`)
+        console.log(`[BATTLE] Match: ${message.battle_id === params.battleId}`)
+        console.log(`[BATTLE] Message type: ${message.type}`)
+        console.log(`[BATTLE] ========================================`)
+
         if (message.battle_id !== params.battleId) {
+            console.log(`[BATTLE] Message filtered out - battle_id mismatch`)
             return // Not for this battle
         }
 
@@ -194,29 +203,52 @@ export default function BattleScreen() {
 
                     if (isPlayerAttack) {
                         console.log(`[BATTLE] This is the player's own attack confirmation`)
-                        // Player's own attack - update state and unlock input when turn changes
-                        if (attackData.turn === 'enemy') {
-                            console.log(`[BATTLE] Turn changed to enemy - waiting for opponent`)
-                            // Opponent's turn now - unlock input when they respond
-                            setWaitingForOpponent(true)
-                        } else if (attackData.turn === 'player') {
-                            console.log(`[BATTLE] Turn changed back to player - unlocking input`)
-                            // Back to player's turn - unlock input
-                            setIsProcessingAction(false)
-                        }
 
-                        // Update HP if needed
+                        // Update HP first (before checking if battle ended)
                         if (attackData.target_hp !== undefined) {
                             console.log(`[BATTLE] Updating enemy HP to: ${attackData.target_hp}`)
                             setEnemyHP(attackData.target_hp)
                         }
 
-                        // Check if battle ended
+                        // Check if battle ended FIRST - this takes priority
                         if (attackData.battle_ended && attackData.winner_id) {
                             console.log(`[BATTLE] Battle ended! Winner: ${attackData.winner_id}`)
                             setBattleEnded(true)
                             setWinner(attackData.winner_id === params.playerId ? 'player' : 'enemy')
                             setIsProcessingAction(false)
+                            setWaitingForOpponent(false)
+                            // Stop polling if active
+                            if (battlePollingIntervalRef.current) {
+                                clearInterval(battlePollingIntervalRef.current)
+                                battlePollingIntervalRef.current = null
+                            }
+                            setBattleLog((prev) => [
+                                ...prev,
+                                `Você usou ${attackData.move_name} e causou ${attackData.damage} de dano!`,
+                                attackData.winner_id === params.playerId ? 'Você venceu!' : 'Você perdeu!',
+                            ])
+                            return // Exit early - battle is over
+                        }
+
+                        // Battle didn't end - update turn state
+                        if (attackData.turn === 'enemy') {
+                            console.log(`[BATTLE] Turn changed to enemy - waiting for opponent`)
+                            // Opponent's turn now
+                            setWaitingForOpponent(true)
+                            setIsProcessingAction(false) // Unlock input (but show waiting message)
+                            setBattleLog((prev) => [
+                                ...prev,
+                                `Você usou ${attackData.move_name} e causou ${attackData.damage} de dano!`,
+                            ])
+                        } else if (attackData.turn === 'player') {
+                            console.log(`[BATTLE] Turn changed back to player - unlocking input`)
+                            // Back to player's turn - unlock input
+                            setIsProcessingAction(false)
+                            setWaitingForOpponent(false)
+                            setBattleLog((prev) => [
+                                ...prev,
+                                `Você usou ${attackData.move_name} e causou ${attackData.damage} de dano!`,
+                            ])
                         }
                     } else {
                         console.log(`[BATTLE] This is opponent's attack - calling handleOpponentAttack`)
@@ -275,13 +307,40 @@ export default function BattleScreen() {
         console.log(`[BATTLE] ========================================`)
 
         // Update enemy HP (which is actually the opponent's HP in multiplayer)
-        setEnemyHP(attackData.target_hp)
+        // Note: In multiplayer, target_hp is the HP of the target (player's HP when opponent attacks)
+        // So we need to update playerHP, not enemyHP
+        if (attackData.target_hp !== undefined) {
+            console.log(`[BATTLE] Updating player HP to: ${attackData.target_hp}`)
+            setPlayerHP(attackData.target_hp)
+        }
         setCurrentDamage(attackData.damage)
+        animateAttack('enemy', 'player', attackData.damage)
+
+        // Check if battle ended FIRST - this takes priority
+        if (attackData.battle_ended && attackData.winner_id) {
+            console.log(`[BATTLE] Battle ended! Winner: ${attackData.winner_id}`)
+            setBattleEnded(true)
+            setWinner(attackData.winner_id === params.playerId ? 'player' : 'enemy')
+            setIsProcessingAction(false)
+            setWaitingForOpponent(false)
+            // Stop polling if active
+            if (battlePollingIntervalRef.current) {
+                clearInterval(battlePollingIntervalRef.current)
+                battlePollingIntervalRef.current = null
+            }
+            setBattleLog((prev) => [
+                ...prev,
+                `${enemy.name} usou ${attackData.move_name} e causou ${attackData.damage} de dano!`,
+                attackData.winner_id === params.playerId ? 'Você venceu!' : 'Você perdeu!',
+            ])
+            return // Exit early - battle is over
+        }
+
+        // Battle didn't end - update turn and log
         setBattleLog((prev) => [
             ...prev,
             `${enemy.name} usou ${attackData.move_name} e causou ${attackData.damage} de dano!`,
         ])
-        animateAttack('enemy', 'player', attackData.damage)
 
         // Update turn
         console.log(`[BATTLE] Updating turn from ${turn} to ${attackData.turn}`)
@@ -291,14 +350,10 @@ export default function BattleScreen() {
         if (attackData.turn === 'player') {
             console.log(`[BATTLE] Unlocking input - it's player's turn now`)
             setIsProcessingAction(false)
-        }
-
-        // Check if battle ended
-        if (attackData.battle_ended && attackData.winner_id) {
-            console.log(`[BATTLE] Battle ended! Winner: ${attackData.winner_id}`)
-            setBattleEnded(true)
-            setWinner(attackData.winner_id === params.playerId ? 'player' : 'enemy')
-            setIsProcessingAction(false)
+            setWaitingForOpponent(false)
+        } else {
+            // Still opponent's turn
+            setWaitingForOpponent(true)
         }
     }
 

@@ -226,6 +226,12 @@ class WebSocketService {
                         console.log('[WEBSOCKET] Matchmaking queued:', message.queue_position)
                     } else if (message.type === 'error') {
                         console.error('[WEBSOCKET] Error from server:', message.message)
+                        // Propagate error to handlers so frontend can handle it
+                        this.handleMessage({
+                            type: 'error',
+                            message: message.message,
+                            battle_id: message.battle_id,
+                        })
                     }
                 } catch (error) {
                     console.error('[WEBSOCKET] Error parsing message:', error)

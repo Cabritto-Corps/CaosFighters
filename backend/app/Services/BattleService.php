@@ -163,6 +163,14 @@ class BattleService implements BattleServiceInterface
                     'hit' => false,
                     'message' => 'Attack missed!',
                     'turn' => $attackerId === $battle->player1_id ? 'enemy' : 'player',
+                    'data' => [
+                        'damage' => 0,
+                        'move_name' => $move->move_name,
+                        'enemy_current_hp' => null, // No damage dealt
+                        'turn' => $attackerId === $battle->player1_id ? 'enemy' : 'player',
+                        'is_finished' => false,
+                        'winner_id' => null,
+                    ],
                 ];
             }
 
@@ -375,6 +383,10 @@ class BattleService implements BattleServiceInterface
         try {
             $battle = Battle::with(['character1', 'character2'])
                 ->find($battleId);
+
+            if (!$battle) {
+                return 40; // Default damage if battle not found
+            }
 
             // Get attacker's character
             $attackerCharacterId = $attackerId === $battle->player1_id

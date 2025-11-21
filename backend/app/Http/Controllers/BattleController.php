@@ -157,7 +157,7 @@ class BattleController extends Controller
                     $match['player2']['user_id'],
                     $validated['user_id']
                 ));
-                
+
                 if ($match['player1']['user_id'] === $validated['user_id']) {
                     $playerMatch = [
                         'opponent_user_id' => $match['player2']['user_id'],
@@ -182,7 +182,7 @@ class BattleController extends Controller
                     break;
                 }
             }
-            
+
             if (!$playerMatch && count($matches) > 0) {
                 error_log(sprintf(
                     '[MATCHMAKING] WARNING: Matches found but current user (%s) was not matched',
@@ -434,8 +434,8 @@ class BattleController extends Controller
             );
 
             return $result['success']
-                ? ApiResponse::success($result['data'], 'Attack executed')
-                : ApiResponse::error($result['message'], $result['error'] ?? null);
+                ? ApiResponse::success($result['data'] ?? null, 'Attack executed')
+                : ApiResponse::error($result['message'] ?? 'Failed to execute attack', $result['error'] ?? null);
         } catch (\Exception $e) {
             return ApiResponse::serverError('Failed to execute attack', $e->getMessage());
         }

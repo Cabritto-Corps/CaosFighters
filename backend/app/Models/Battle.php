@@ -19,6 +19,7 @@ use Carbon\Carbon;
  * @property string|null $duration
  * @property array|null $battle_log
  * @property \Carbon\Carbon $battle_timestamp
+ * @property bool $is_multiplayer
  * @property \Carbon\Carbon $created_at
  *
  * @property-read \App\Models\User $player1
@@ -64,6 +65,7 @@ class Battle extends Model
         'duration',
         'battle_log',
         'battle_timestamp',
+        'is_multiplayer',
     ];
 
     /**
@@ -78,6 +80,7 @@ class Battle extends Model
             'battle_log' => 'array',
             'battle_timestamp' => 'datetime',
             'created_at' => 'datetime',
+            'is_multiplayer' => 'boolean',
         ];
     }
 
