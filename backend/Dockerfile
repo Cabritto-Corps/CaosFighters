@@ -1,4 +1,8 @@
-FROM composer:2 AS vendor
+# Use PHP 8.2 image and install composer manually to ensure PHP version compatibility
+FROM php:8.2-cli AS vendor
+
+# Install composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
