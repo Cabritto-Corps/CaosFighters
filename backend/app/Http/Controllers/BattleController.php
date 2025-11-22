@@ -438,22 +438,20 @@ class BattleController extends Controller
             }
 
             // Return full result including waiting_for_opponent and round_complete status
-            $responseData = $result['data'] ?? [];
-            if (isset($result['waiting_for_opponent'])) {
-                $responseData['waiting_for_opponent'] = $result['waiting_for_opponent'];
-            }
-            if (isset($result['round_complete'])) {
-                $responseData['round_complete'] = $result['round_complete'];
-            }
-            if (isset($result['round_results'])) {
-                $responseData['round_results'] = $result['round_results'];
-            }
-            if (isset($result['battle_ended'])) {
-                $responseData['battle_ended'] = $result['battle_ended'];
-            }
-            if (isset($result['winner_id'])) {
-                $responseData['winner_id'] = $result['winner_id'];
-            }
+            // Merge data from result['data'] with top-level fields
+            $responseData = array_merge(
+                $result['data'] ?? [],
+                [
+                    'waiting_for_opponent' => $result['waiting_for_opponent'] ?? null,
+                    'round_complete' => $result['round_complete'] ?? null,
+                    'round_results' => $result['round_results'] ?? null,
+                    'battle_ended' => $result['battle_ended'] ?? null,
+                    'winner_id' => $result['winner_id'] ?? null,
+                ]
+            );
+            
+            // Remove null values to keep response clean
+            $responseData = array_filter($responseData, fn($value) => $value !== null);
 
             return ApiResponse::success($responseData, $result['message'] ?? 'Attack executed');
         } catch (\Exception $e) {

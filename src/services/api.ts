@@ -13,27 +13,26 @@ import type {
     UserProfileResponse,
 } from '../types/auth'
 import type {
-    CharacterApiResponse
-} from '../types/character'
-import type {
-    BattleStartResponse,
     BattleAttackResponse,
-    BattleResultsResponse,
-    BattleHistoryResponse,
     BattleDetailsResponse,
-    MatchmakingJoinRequest,
+    BattleHistoryResponse,
+    BattleResultsResponse,
+    BattleStartResponse,
     MatchmakingJoinResponse,
-    MatchmakingStatusResponse,
+    MatchmakingStatusResponse
 } from '../types/battle'
 import type {
-    RankingResponse,
-    UserPositionResponse,
-} from '../types/ranking'
+    CharacterApiResponse
+} from '../types/character'
 import type {
     NotificationPreferencesResponse,
     UpdateNotificationPreferencesRequest,
     UpdateNotificationPreferencesResponse,
 } from '../types/notifications'
+import type {
+    RankingResponse,
+    UserPositionResponse,
+} from '../types/ranking'
 
 /**
  * Storage keys for AsyncStorage
@@ -129,18 +128,18 @@ class ApiService {
             } else {
                 const textResponse = await response.text()
                 console.error('Non-JSON response:', textResponse.substring(0, 500)) // Log first 500 chars
-                
+
                 // If it's an error response (4xx or 5xx), provide a more helpful error message
                 if (!response.ok) {
                     // Try to extract error information from HTML if possible
-                    const errorMatch = textResponse.match(/<title>(.*?)<\/title>/i) || 
-                                      textResponse.match(/<h1>(.*?)<\/h1>/i) ||
-                                      textResponse.match(/Error:\s*(.*?)(?:\n|<)/i)
-                    
+                    const errorMatch = textResponse.match(/<title>(.*?)<\/title>/i) ||
+                        textResponse.match(/<h1>(.*?)<\/h1>/i) ||
+                        textResponse.match(/Error:\s*(.*?)(?:\n|<)/i)
+
                     const errorMessage = errorMatch ? errorMatch[1] : `Server returned HTML instead of JSON`
                     throw new Error(`HTTP ${response.status}: ${errorMessage}`)
                 }
-                
+
                 throw new Error(`Expected JSON response but got: ${contentType || 'unknown'}`)
             }
 
@@ -213,18 +212,18 @@ class ApiService {
             } else {
                 const textResponse = await response.text()
                 console.error('Non-JSON response:', textResponse.substring(0, 500)) // Log first 500 chars
-                
+
                 // If it's an error response (4xx or 5xx), provide a more helpful error message
                 if (!response.ok) {
                     // Try to extract error information from HTML if possible
-                    const errorMatch = textResponse.match(/<title>(.*?)<\/title>/i) || 
-                                      textResponse.match(/<h1>(.*?)<\/h1>/i) ||
-                                      textResponse.match(/Error:\s*(.*?)(?:\n|<)/i)
-                    
+                    const errorMatch = textResponse.match(/<title>(.*?)<\/title>/i) ||
+                        textResponse.match(/<h1>(.*?)<\/h1>/i) ||
+                        textResponse.match(/Error:\s*(.*?)(?:\n|<)/i)
+
                     const errorMessage = errorMatch ? errorMatch[1] : `Server returned HTML instead of JSON`
                     throw new Error(`HTTP ${response.status}: ${errorMessage}`)
                 }
-                
+
                 throw new Error(`Expected JSON response but got: ${contentType || 'unknown'}`)
             }
 
@@ -533,7 +532,7 @@ class ApiService {
                     }),
                 }
             )
-            
+
             return response
         } catch (error) {
             if (error instanceof Error) {
@@ -585,7 +584,7 @@ class ApiService {
     async getBattleHistory(userId: string, limit: number = 50): Promise<BattleHistoryResponse> {
         try {
             const url = `${API_CONFIG.ENDPOINTS.BATTLES.HISTORY}?user_id=${encodeURIComponent(userId)}&limit=${limit}`
-            
+
             return this.makeRequestWithoutAuth<BattleHistoryResponse>(
                 url,
                 {
@@ -606,7 +605,7 @@ class ApiService {
     async getBattleDetails(battleId: string, userId: string): Promise<BattleDetailsResponse> {
         try {
             const url = `${API_CONFIG.ENDPOINTS.BATTLES.GET(battleId)}?user_id=${encodeURIComponent(userId)}`
-            
+
             return this.makeRequestWithoutAuth<BattleDetailsResponse>(
                 url,
                 {
@@ -631,7 +630,7 @@ class ApiService {
     async getRanking(limit: number = 100): Promise<RankingResponse> {
         try {
             const url = `${API_CONFIG.ENDPOINTS.RANKING.LIST}?limit=${limit}`
-            
+
             return this.makeRequestWithoutAuth<RankingResponse>(
                 url,
                 {

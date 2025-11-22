@@ -147,8 +147,8 @@ export default function BattleScreen() {
         if (isMultiplayer && battleId) {
             websocketService.leaveBattle(battleId)
         }
-        if (websocketUnsubscribeRef.current) {
-            websocketUnsubscribeRef.current()
+                if (websocketUnsubscribeRef.current) {
+                    websocketUnsubscribeRef.current()
             websocketUnsubscribeRef.current = null
         }
         if (battlePollingIntervalRef.current) {
@@ -160,85 +160,85 @@ export default function BattleScreen() {
 
     const animateAttack = useCallback(
         (attacker: 'player' | 'enemy', target: 'player' | 'enemy', damage: number) => {
-            const targetAnim = target === 'player' ? shakeAnimPlayer : shakeAnimEnemy
+        const targetAnim = target === 'player' ? shakeAnimPlayer : shakeAnimEnemy
 
-            // Definir o dano atual para exibição
-            setCurrentDamage(damage)
+        // Definir o dano atual para exibição
+        setCurrentDamage(damage)
 
-            // Reset das animações
-            attackEffectOpacity.setValue(0)
-            attackEffectScale.setValue(0.5)
-            attackEffectRotation.setValue(0)
-            damageTextOpacity.setValue(0)
-            damageTextTranslateY.setValue(0)
-            damageTextScale.setValue(0.5)
-            screenFlashOpacity.setValue(0)
-            characterAttackScale.setValue(1)
-            characterAttackRotation.setValue(0)
+        // Reset das animações
+        attackEffectOpacity.setValue(0)
+        attackEffectScale.setValue(0.5)
+        attackEffectRotation.setValue(0)
+        damageTextOpacity.setValue(0)
+        damageTextTranslateY.setValue(0)
+        damageTextScale.setValue(0.5)
+        screenFlashOpacity.setValue(0)
+        characterAttackScale.setValue(1)
+        characterAttackRotation.setValue(0)
 
-            // Animação simplificada para evitar conflitos
-            Animated.parallel([
-                // Shake do alvo
-                Animated.sequence([
-                    Animated.timing(targetAnim, {
-                        toValue: 10,
-                        duration: 100,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(targetAnim, {
-                        toValue: -10,
-                        duration: 100,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(targetAnim, {
-                        toValue: 0,
-                        duration: 100,
-                        useNativeDriver: true,
-                    }),
-                ]),
+        // Animação simplificada para evitar conflitos
+        Animated.parallel([
+            // Shake do alvo
+            Animated.sequence([
+                Animated.timing(targetAnim, {
+                    toValue: 10,
+                    duration: 100,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(targetAnim, {
+                    toValue: -10,
+                    duration: 100,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(targetAnim, {
+                    toValue: 0,
+                    duration: 100,
+                    useNativeDriver: true,
+                }),
+            ]),
 
-                // Efeito visual simples
-                Animated.sequence([
-                    Animated.timing(attackEffectOpacity, {
+            // Efeito visual simples
+            Animated.sequence([
+                Animated.timing(attackEffectOpacity, {
+                    toValue: 1,
+                    duration: 150,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(attackEffectOpacity, {
+                    toValue: 0,
+                    duration: 150,
+                    useNativeDriver: true,
+                }),
+            ]),
+
+            // Texto de dano
+            Animated.sequence([
+                Animated.parallel([
+                    Animated.timing(damageTextOpacity, {
                         toValue: 1,
-                        duration: 150,
+                        duration: 200,
                         useNativeDriver: true,
                     }),
-                    Animated.timing(attackEffectOpacity, {
+                    Animated.timing(damageTextScale, {
+                        toValue: 1.2,
+                        duration: 200,
+                        useNativeDriver: true,
+                    }),
+                ]),
+                Animated.parallel([
+                    Animated.timing(damageTextTranslateY, {
+                        toValue: -20,
+                        duration: 600,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(damageTextOpacity, {
                         toValue: 0,
-                        duration: 150,
+                        duration: 600,
                         useNativeDriver: true,
                     }),
                 ]),
-
-                // Texto de dano
-                Animated.sequence([
-                    Animated.parallel([
-                        Animated.timing(damageTextOpacity, {
-                            toValue: 1,
-                            duration: 200,
-                            useNativeDriver: true,
-                        }),
-                        Animated.timing(damageTextScale, {
-                            toValue: 1.2,
-                            duration: 200,
-                            useNativeDriver: true,
-                        }),
-                    ]),
-                    Animated.parallel([
-                        Animated.timing(damageTextTranslateY, {
-                            toValue: -20,
-                            duration: 600,
-                            useNativeDriver: true,
-                        }),
-                        Animated.timing(damageTextOpacity, {
-                            toValue: 0,
-                            duration: 600,
-                            useNativeDriver: true,
-                        }),
-                    ]),
-                ]),
-            ]).start()
+            ]),
+        ]).start()
         },
         [
             shakeAnimPlayer,
@@ -812,9 +812,9 @@ export default function BattleScreen() {
                     setWaitingForOpponent(true)
                     setTurn('enemy') // Optimistically set turn, will be confirmed by server
                 } else {
-                    await apiService.executeAttack(battleId, attack.id.toString())
-                    setWaitingForOpponent(true)
-                    setTurn('enemy') // Optimistically set turn, will be confirmed by server
+                await apiService.executeAttack(battleId, attack.id.toString())
+                setWaitingForOpponent(true)
+                setTurn('enemy') // Optimistically set turn, will be confirmed by server
                 }
             } catch {
                 // Unlock on error so user can try again
@@ -852,8 +852,17 @@ export default function BattleScreen() {
         }
     }
 
+    const [isEndingBattle, setIsEndingBattle] = useState(false)
+
     const handleEndBattle = async () => {
+        // Prevent multiple clicks
+        if (isEndingBattle) {
+            return
+        }
+
         try {
+            setIsEndingBattle(true)
+
             if (!battleId || !playerId) {
                 console.warn('[BATTLE] Missing battle identifiers, returning to previous screen.')
                 router.back()
@@ -1173,10 +1182,11 @@ export default function BattleScreen() {
                             </Text>
 
                             <ChaosButton
-                                title="Finalizar Batalha"
+                                title={isEndingBattle ? 'Finalizando...' : 'Finalizar Batalha'}
                                 onPress={handleEndBattle}
                                 variant={winner === 'player' ? 'success' : 'danger'}
                                 size="large"
+                                disabled={isEndingBattle}
                             />
                         </View>
                     )}

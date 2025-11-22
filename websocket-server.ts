@@ -537,18 +537,20 @@ async function handleBattleAttack(client: Client, moveId: string): Promise<void>
             }
         )
 
-        const attackResponse = result.data as AttackResponse | undefined
-        console.log(`[WEBSOCKET] Backend attack response:`, {
+        const responseData = result.data as any
+        console.log(`[WEBSOCKET] Full backend response:`, JSON.stringify(result, null, 2))
+        console.log(`[WEBSOCKET] Response data structure:`, {
             success: result.success,
             hasData: !!result.data,
             message: result.message,
             error: result.error,
-            moveName: attackResponse?.data?.move_name,
-            damage: attackResponse?.data?.damage,
-            enemyCurrentHp: attackResponse?.data?.enemy_current_hp,
-            turn: attackResponse?.data?.turn,
-            isFinished: attackResponse?.data?.is_finished,
-            winnerId: attackResponse?.data?.winner_id,
+            dataKeys: result.data ? Object.keys(result.data) : [],
+            waitingForOpponent: responseData?.waiting_for_opponent,
+            roundComplete: responseData?.round_complete,
+            hasRoundResults: !!responseData?.round_results,
+            roundResultsKeys: responseData?.round_results ? Object.keys(responseData.round_results) : [],
+            battleEnded: responseData?.battle_ended,
+            winnerId: responseData?.winner_id,
         })
 
         if (!result.success) {
@@ -565,10 +567,10 @@ async function handleBattleAttack(client: Client, moveId: string): Promise<void>
         )
 
         // Handle round complete (both attacks processed)
-        if (attackResponse?.round_complete && attackResponse.round_results) {
-            const roundResults = attackResponse.round_results
-            const battleEnded = attackResponse.battle_ended || false
-            const winnerId = attackResponse.winner_id || null
+        if (responseData?.round_complete && responseData.round_results) {
+            const roundResults = responseData.round_results
+            const battleEnded = responseData.battle_ended || false
+            const winnerId = responseData.winner_id || null
 
             // Send round complete to both players
             const roundCompleteMessage = {
@@ -582,6 +584,8 @@ async function handleBattleAttack(client: Client, moveId: string): Promise<void>
                 },
             }
 
+            console.log(`[WEBSOCKET] Round complete message:`, JSON.stringify(roundCompleteMessage, null, 2))
+
             send(client.ws, roundCompleteMessage)
             if (opponentClient) {
                 send(opponentClient.ws, roundCompleteMessage)
@@ -593,7 +597,7 @@ async function handleBattleAttack(client: Client, moveId: string): Promise<void>
         }
 
         // Handle pending attack (waiting for opponent)
-        if (attackResponse?.waiting_for_opponent || attackResponse?.data?.waiting_for_opponent) {
+        if (responseData?.waiting_for_opponent) {
             // Confirm to attacker that attack is queued
             send(client.ws, {
                 type: 'battle_attack',
@@ -602,8 +606,8 @@ async function handleBattleAttack(client: Client, moveId: string): Promise<void>
                     battle_id: client.battleId,
                     attacker_id: client.userId,
                     move_id: moveId,
-                    move_name: attackResponse?.data?.move_name || 'Unknown',
-                    damage: attackResponse?.data?.damage || 0,
+                    move_name: responseData?.move_name || 'Unknown',
+                    damage: responseData?.damage || 0,
                     waiting_for_opponent: true,
                 },
             })
@@ -614,13 +618,13 @@ async function handleBattleAttack(client: Client, moveId: string): Promise<void>
         }
 
         // Handle single attack (bot battle or legacy)
-        if (!attackResponse?.data) {
+        if (!responseData) {
             console.error(`[WEBSOCKET] Attack succeeded but no data returned`)
             sendError(client.ws, 'Attack succeeded but no data returned')
             return
         }
 
-        const attackData = attackResponse.data
+        const attackData = responseData
 
         console.log(`[WEBSOCKET] Opponent lookup:`, {
             found: !!opponentClient,
