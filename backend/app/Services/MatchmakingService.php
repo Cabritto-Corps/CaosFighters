@@ -18,23 +18,6 @@ class MatchmakingService
     public function joinQueue(string $userId, string $characterUserId): array
     {
         try {
-            // Check if user is already in an active battle
-            $activeBattle = \App\Models\Battle::where(function ($query) use ($userId) {
-                $query->where('player1_id', $userId)
-                      ->orWhere('player2_id', $userId);
-            })
-            ->whereNull('winner_id')
-            ->where('is_multiplayer', true)
-            ->first();
-
-            if ($activeBattle) {
-                return [
-                    'success' => false,
-                    'message' => 'You are already in a battle',
-                    'error' => 'User is already in an active battle',
-                ];
-            }
-
             $queue = $this->getQueue();
 
             // Check if user is already in queue
@@ -183,20 +166,23 @@ class MatchmakingService
         try {
             $queue = $this->getQueue();
             $this->cleanExpiredEntries($queue);
-            
-            // Remove users who are already in active battles
-            $queue = array_filter($queue, function ($entry) {
+
+            // Remove users who are already in active battles (only recent battles within last 5 minutes)
+            // This prevents old abandoned battles from blocking matchmaking but still blocks current battles
+            $fiveMinutesAgo = now()->subMinutes(1);
+            $queue = array_filter($queue, function ($entry) use ($fiveMinutesAgo) {
                 $activeBattle = \App\Models\Battle::where(function ($query) use ($entry) {
                     $query->where('player1_id', $entry['user_id'])
-                          ->orWhere('player2_id', $entry['user_id']);
+                        ->orWhere('player2_id', $entry['user_id']);
                 })
-                ->whereNull('winner_id')
-                ->where('is_multiplayer', true)
-                ->exists();
-                
+                    ->whereNull('winner_id')
+                    ->where('is_multiplayer', true)
+                    ->where('created_at', '>=', $fiveMinutesAgo)
+                    ->exists();
+
                 return !$activeBattle;
             });
-            
+
             $queue = array_values($queue); // Re-index array
             $this->saveQueue($queue);
 
