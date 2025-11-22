@@ -6,13 +6,34 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://backend-production-a7bd.up.railway.app/backend",
+        "EXPO_PUBLIC_REVERB_APP_KEY": "nvuieucdjlve0ijdi1nd",
+        "EXPO_PUBLIC_REVERB_HOST": "websocket-production-213e.up.railway.app",
+        "EXPO_PUBLIC_REVERB_PORT": "443",
+        "EXPO_PUBLIC_REVERB_SCHEME": "https"
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://backend-production-a7bd.up.railway.app/backend",
+        "EXPO_PUBLIC_REVERB_APP_KEY": "nvuieucdjlve0ijdi1nd",
+        "EXPO_PUBLIC_REVERB_HOST": "websocket-production-213e.up.railway.app",
+        "EXPO_PUBLIC_REVERB_PORT": "443",
+        "EXPO_PUBLIC_REVERB_SCHEME": "https"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://backend-production-a7bd.up.railway.app/backend",
+        "EXPO_PUBLIC_REVERB_APP_KEY": "123456789",
+        "EXPO_PUBLIC_REVERB_HOST": "websocket-production-213e.up.railway.app",
+        "EXPO_PUBLIC_REVERB_PORT": "443",
+        "EXPO_PUBLIC_REVERB_SCHEME": "https"
+      }
     }
   },
   "submit": {
