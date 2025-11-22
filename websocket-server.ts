@@ -567,10 +567,27 @@ async function handleBattleAttack(client: Client, moveId: string): Promise<void>
         )
 
         // Handle round complete (both attacks processed)
-        if (responseData?.round_complete && responseData.round_results) {
-            const roundResults = responseData.round_results
-            const battleEnded = responseData.battle_ended || false
-            const winnerId = responseData.winner_id || null
+        // Check both direct access and nested in data
+        const roundComplete = responseData?.round_complete || responseData?.data?.round_complete
+        const roundResults = responseData?.round_results || responseData?.data?.round_results
+
+        // Check if round_complete is true (boolean or string "true")
+        const isRoundComplete = roundComplete === true || roundComplete === 'true' || roundComplete === 1
+
+        console.log(`[WEBSOCKET] Checking round_complete:`, {
+            hasResponseData: !!responseData,
+            roundComplete: roundComplete,
+            roundCompleteType: typeof roundComplete,
+            isRoundComplete: isRoundComplete,
+            hasRoundResults: !!roundResults,
+            responseDataType: typeof responseData,
+            responseDataKeys: responseData ? Object.keys(responseData) : [],
+            responseDataString: JSON.stringify(responseData).substring(0, 500),
+        })
+
+        if (isRoundComplete && roundResults) {
+            const battleEnded = responseData?.battle_ended || responseData?.data?.battle_ended || false
+            const winnerId = responseData?.winner_id || responseData?.data?.winner_id || null
 
             // Send round complete to both players
             const roundCompleteMessage = {

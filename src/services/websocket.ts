@@ -187,6 +187,8 @@ class WebSocketService {
                     }
 
                     // Handle matchmaking and battle messages
+                    console.log(`[WEBSOCKET] Raw message received:`, message.type)
+                    
                     if (message.type === 'match_found') {
                         this.handleMessage({
                             type: 'match_found',
@@ -196,6 +198,13 @@ class WebSocketService {
                     } else if (message.type === 'battle_attack') {
                         this.handleMessage({
                             type: 'battle_attack',
+                            data: message.data,
+                            battle_id: message.battle_id,
+                        })
+                    } else if (message.type === 'battle_round_complete') {
+                        console.log(`[WEBSOCKET] battle_round_complete message received, dispatching to handlers`)
+                        this.handleMessage({
+                            type: 'battle_round_complete',
                             data: message.data,
                             battle_id: message.battle_id,
                         })
@@ -218,6 +227,8 @@ class WebSocketService {
                             message: message.message,
                             battle_id: message.battle_id,
                         })
+                    } else {
+                        console.log(`[WEBSOCKET] Unknown message type:`, message.type)
                     }
                 } catch (error) {
                     console.error('[WEBSOCKET] Error parsing message:', error)
