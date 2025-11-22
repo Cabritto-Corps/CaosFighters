@@ -183,7 +183,9 @@ export default function MainScreen() {
             return
         }
 
-        if (isStartingBattle) return
+        if (isStartingBattle) {
+            return
+        }
 
         try {
             setIsStartingBattle(true)
@@ -192,6 +194,7 @@ export default function MainScreen() {
                 // Multiplayer mode - join matchmaking queue
                 if (!user?.id) {
                     console.error('User ID required for multiplayer')
+                    setIsStartingBattle(false)
                     return
                 }
 
@@ -200,6 +203,8 @@ export default function MainScreen() {
                 // Connect to WebSocket if not connected
                 if (!websocketService.isConnected()) {
                     await websocketService.connect(user.id)
+                    // Wait a bit for WebSocket to be fully connected
+                    await new Promise((resolve) => setTimeout(resolve, 300))
                 }
 
                 // Set up message handler for match found
@@ -225,9 +230,6 @@ export default function MainScreen() {
                 // If using custom WebSocket server, send via WebSocket
                 // Otherwise, use HTTP API (Reverb will broadcast events)
                 try {
-                    // Wait a bit for WebSocket to be fully connected
-                    await new Promise((resolve) => setTimeout(resolve, 500))
-
                     if (websocketService.isConnected()) {
                         // Try WebSocket first (for custom server)
                         websocketService.joinMatchmaking(currentCharacter.character_user_id)

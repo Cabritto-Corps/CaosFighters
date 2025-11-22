@@ -104,6 +104,7 @@ export default function BattleScreen() {
     const turnRef = useRef<'player' | 'enemy'>(turn)
     const isProcessingActionRef = useRef<boolean>(isProcessingAction)
     const isMultiplayerRef = useRef<boolean>(isMultiplayer)
+    const battleEndedRef = useRef<boolean>(battleEnded)
 
     // Update refs when values change
     useEffect(() => {
@@ -112,7 +113,8 @@ export default function BattleScreen() {
         turnRef.current = turn
         isProcessingActionRef.current = isProcessingAction
         isMultiplayerRef.current = isMultiplayer
-    }, [battleId, playerId, turn, isProcessingAction, isMultiplayer])
+        battleEndedRef.current = battleEnded
+    }, [battleId, playerId, turn, isProcessingAction, isMultiplayer, battleEnded])
 
     // Animações
     const fadeAnim = useRef(new Animated.Value(0)).current
@@ -147,8 +149,8 @@ export default function BattleScreen() {
         if (isMultiplayer && battleId) {
             websocketService.leaveBattle(battleId)
         }
-                if (websocketUnsubscribeRef.current) {
-                    websocketUnsubscribeRef.current()
+        if (websocketUnsubscribeRef.current) {
+            websocketUnsubscribeRef.current()
             websocketUnsubscribeRef.current = null
         }
         if (battlePollingIntervalRef.current) {
@@ -160,85 +162,85 @@ export default function BattleScreen() {
 
     const animateAttack = useCallback(
         (attacker: 'player' | 'enemy', target: 'player' | 'enemy', damage: number) => {
-        const targetAnim = target === 'player' ? shakeAnimPlayer : shakeAnimEnemy
+            const targetAnim = target === 'player' ? shakeAnimPlayer : shakeAnimEnemy
 
-        // Definir o dano atual para exibição
-        setCurrentDamage(damage)
+            // Definir o dano atual para exibição
+            setCurrentDamage(damage)
 
-        // Reset das animações
-        attackEffectOpacity.setValue(0)
-        attackEffectScale.setValue(0.5)
-        attackEffectRotation.setValue(0)
-        damageTextOpacity.setValue(0)
-        damageTextTranslateY.setValue(0)
-        damageTextScale.setValue(0.5)
-        screenFlashOpacity.setValue(0)
-        characterAttackScale.setValue(1)
-        characterAttackRotation.setValue(0)
+            // Reset das animações
+            attackEffectOpacity.setValue(0)
+            attackEffectScale.setValue(0.5)
+            attackEffectRotation.setValue(0)
+            damageTextOpacity.setValue(0)
+            damageTextTranslateY.setValue(0)
+            damageTextScale.setValue(0.5)
+            screenFlashOpacity.setValue(0)
+            characterAttackScale.setValue(1)
+            characterAttackRotation.setValue(0)
 
-        // Animação simplificada para evitar conflitos
-        Animated.parallel([
-            // Shake do alvo
-            Animated.sequence([
-                Animated.timing(targetAnim, {
-                    toValue: 10,
-                    duration: 100,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(targetAnim, {
-                    toValue: -10,
-                    duration: 100,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(targetAnim, {
-                    toValue: 0,
-                    duration: 100,
-                    useNativeDriver: true,
-                }),
-            ]),
-
-            // Efeito visual simples
-            Animated.sequence([
-                Animated.timing(attackEffectOpacity, {
-                    toValue: 1,
-                    duration: 150,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(attackEffectOpacity, {
-                    toValue: 0,
-                    duration: 150,
-                    useNativeDriver: true,
-                }),
-            ]),
-
-            // Texto de dano
-            Animated.sequence([
-                Animated.parallel([
-                    Animated.timing(damageTextOpacity, {
-                        toValue: 1,
-                        duration: 200,
+            // Animação simplificada para evitar conflitos
+            Animated.parallel([
+                // Shake do alvo
+                Animated.sequence([
+                    Animated.timing(targetAnim, {
+                        toValue: 10,
+                        duration: 100,
                         useNativeDriver: true,
                     }),
-                    Animated.timing(damageTextScale, {
-                        toValue: 1.2,
-                        duration: 200,
+                    Animated.timing(targetAnim, {
+                        toValue: -10,
+                        duration: 100,
                         useNativeDriver: true,
                     }),
-                ]),
-                Animated.parallel([
-                    Animated.timing(damageTextTranslateY, {
-                        toValue: -20,
-                        duration: 600,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(damageTextOpacity, {
+                    Animated.timing(targetAnim, {
                         toValue: 0,
-                        duration: 600,
+                        duration: 100,
                         useNativeDriver: true,
                     }),
                 ]),
-            ]),
-        ]).start()
+
+                // Efeito visual simples
+                Animated.sequence([
+                    Animated.timing(attackEffectOpacity, {
+                        toValue: 1,
+                        duration: 150,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(attackEffectOpacity, {
+                        toValue: 0,
+                        duration: 150,
+                        useNativeDriver: true,
+                    }),
+                ]),
+
+                // Texto de dano
+                Animated.sequence([
+                    Animated.parallel([
+                        Animated.timing(damageTextOpacity, {
+                            toValue: 1,
+                            duration: 200,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(damageTextScale, {
+                            toValue: 1.2,
+                            duration: 200,
+                            useNativeDriver: true,
+                        }),
+                    ]),
+                    Animated.parallel([
+                        Animated.timing(damageTextTranslateY, {
+                            toValue: -20,
+                            duration: 600,
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(damageTextOpacity, {
+                            toValue: 0,
+                            duration: 600,
+                            useNativeDriver: true,
+                        }),
+                    ]),
+                ]),
+            ]).start()
         },
         [
             shakeAnimPlayer,
@@ -348,6 +350,11 @@ export default function BattleScreen() {
                 return // Not for this battle
             }
 
+            // Ignore all messages if battle already ended (except battle_end which is handled separately)
+            if (battleEndedRef.current && message.type !== 'battle_end') {
+                return
+            }
+
             // Update last WebSocket message time - if we're receiving messages, stop polling
             lastWebSocketMessageRef.current = Date.now()
 
@@ -410,10 +417,7 @@ export default function BattleScreen() {
                                         `Você usou ${player1Attack.move_name} e causou ${player1Attack.damage} de dano!`,
                                     ])
                                 } else {
-                                    setBattleLog((prev) => [
-                                        ...prev,
-                                        `Você usou ${player1Attack.move_name} mas errou!`,
-                                    ])
+                                    setBattleLog((prev) => [...prev, `Você usou ${player1Attack.move_name} mas errou!`])
                                 }
                                 setEnemyHP(player1Attack.defender_current_hp)
                             } else if (isDefender) {
@@ -473,10 +477,7 @@ export default function BattleScreen() {
                                         `Você usou ${player2Attack.move_name} e causou ${player2Attack.damage} de dano!`,
                                     ])
                                 } else {
-                                    setBattleLog((prev) => [
-                                        ...prev,
-                                        `Você usou ${player2Attack.move_name} mas errou!`,
-                                    ])
+                                    setBattleLog((prev) => [...prev, `Você usou ${player2Attack.move_name} mas errou!`])
                                 }
                                 setEnemyHP(player2Attack.defender_current_hp)
                             } else if (isDefender) {
@@ -614,12 +615,17 @@ export default function BattleScreen() {
                     }
                     break
                 case 'battle_end':
+                    // Ignore battle_end messages if battle already ended to prevent UI flickering
+                    if (battleEnded) {
+                        return
+                    }
                     if (message.data) {
                         const endData = message.data as any
                         setBattleEnded(true)
                         setWinner(endData.winner_id === currentPlayerId ? 'player' : 'enemy')
                         setBattleLog((prev) => [...prev, endData.message || 'Batalha finalizada!'])
                         setIsProcessingAction(false)
+                        setWaitingForOpponent(false)
                         // Cleanup WebSocket when battle ends
                         if (isMultiplayerRef.current && currentBattleId) {
                             setTimeout(() => {
@@ -818,9 +824,9 @@ export default function BattleScreen() {
                     setWaitingForOpponent(true)
                     setTurn('enemy') // Optimistically set turn, will be confirmed by server
                 } else {
-                await apiService.executeAttack(battleId, attack.id.toString())
-                setWaitingForOpponent(true)
-                setTurn('enemy') // Optimistically set turn, will be confirmed by server
+                    await apiService.executeAttack(battleId, attack.id.toString())
+                    setWaitingForOpponent(true)
+                    setTurn('enemy') // Optimistically set turn, will be confirmed by server
                 }
             } catch {
                 // Unlock on error so user can try again
@@ -892,6 +898,19 @@ export default function BattleScreen() {
             await apiService.endBattle(battleId, winnerId, durationSeconds, battleLog)
 
             console.log('Battle ended successfully:', { battleId, winnerId, durationSeconds, battleLog })
+
+            // Cleanup WebSocket before navigating away
+            if (isMultiplayer && battleId) {
+                websocketService.leaveBattle(battleId)
+            }
+            if (websocketUnsubscribeRef.current) {
+                websocketUnsubscribeRef.current()
+                websocketUnsubscribeRef.current = null
+            }
+            if (battlePollingIntervalRef.current) {
+                clearInterval(battlePollingIntervalRef.current)
+                battlePollingIntervalRef.current = null
+            }
         } catch (error) {
             console.error('Error ending battle:', error)
         } finally {

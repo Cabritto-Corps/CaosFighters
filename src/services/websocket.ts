@@ -188,7 +188,7 @@ class WebSocketService {
 
                     // Handle matchmaking and battle messages
                     console.log(`[WEBSOCKET] Raw message received:`, message.type)
-                    
+
                     if (message.type === 'match_found') {
                         this.handleMessage({
                             type: 'match_found',
