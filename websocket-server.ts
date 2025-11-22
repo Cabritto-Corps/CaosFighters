@@ -586,9 +586,14 @@ async function handleBattleAttack(client: Client, moveId: string): Promise<void>
 
             console.log(`[WEBSOCKET] Round complete message:`, JSON.stringify(roundCompleteMessage, null, 2))
 
+            console.log(`[WEBSOCKET] Sending round_complete to attacker ${client.userId}`)
             send(client.ws, roundCompleteMessage)
+
             if (opponentClient) {
+                console.log(`[WEBSOCKET] Sending round_complete to opponent ${opponentClient.userId}`)
                 send(opponentClient.ws, roundCompleteMessage)
+            } else {
+                console.warn(`[WEBSOCKET] No opponent found to send round_complete`)
             }
 
             console.log(`[WEBSOCKET] Round complete broadcasted to both players`)

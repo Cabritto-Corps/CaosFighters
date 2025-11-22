@@ -357,8 +357,11 @@ export default function BattleScreen() {
                 battlePollingIntervalRef.current = null
             }
 
+            console.log(`[BATTLE] WebSocket message received:`, message.type)
+
             switch (message.type) {
                 case 'battle_round_complete':
+                    console.log(`[BATTLE] Processing battle_round_complete`)
                     if (message.data) {
                         const roundData = message.data as {
                             battle_id: string
@@ -519,9 +522,12 @@ export default function BattleScreen() {
                         }
 
                         // Round complete, unlock input for next round
+                        console.log(`[BATTLE] Round complete - unlocking input`)
                         setTurn('player')
                         setIsProcessingAction(false)
                         setWaitingForOpponent(false)
+                    } else {
+                        console.warn(`[BATTLE] battle_round_complete message has no data`)
                     }
                     break
                 case 'battle_attack':

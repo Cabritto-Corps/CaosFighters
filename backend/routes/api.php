@@ -19,10 +19,10 @@ Route::prefix('health')->group(function () {
 Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
-    Route::get('/me', [AuthController::class, 'me'])->middleware('auth:sanctum');
-    Route::post('/refresh', [AuthController::class, 'refresh'])->middleware('auth:sanctum');
-    Route::post('/update-push-token', [AuthController::class, 'updatePushToken'])->middleware('auth:sanctum');
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/me', [AuthController::class, 'me']);
+    Route::post('/refresh', [AuthController::class, 'refresh']);
+    Route::post('/update-push-token', [AuthController::class, 'updatePushToken']);
 });
 
 // User Management Routes (no auth required)
@@ -71,4 +71,3 @@ Route::prefix('notifications')->middleware('auth:sanctum')->group(function () {
     Route::get('/preferences', [NotificationsController::class, 'getPreferences']);
     Route::post('/preferences', [NotificationsController::class, 'updatePreferences']);
 });
-

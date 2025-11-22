@@ -1,4 +1,4 @@
-import type { UserCharacter, CharacterMove } from './character'
+import type { UserCharacter } from './character'
 
 export interface BattleParticipant {
     userId: string
@@ -174,7 +174,7 @@ export interface BattleDetailsResponse {
 export type BattleMode = 'bot' | 'multiplayer'
 
 export interface WebSocketMessage {
-    type: 'match_found' | 'battle_attack' | 'battle_state_update' | 'battle_end' | 'error' | 'matchmaking_queued'
+    type: 'match_found' | 'battle_attack' | 'battle_state_update' | 'battle_end' | 'battle_round_complete' | 'error' | 'matchmaking_queued'
     data?: any
     battle_id?: string
     message?: string
