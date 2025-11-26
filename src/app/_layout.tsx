@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { AppState } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import MusicManager from '../utils/MusicManager';
 
@@ -20,6 +21,28 @@ export default function RootLayout() {
     };
 
     initializeGlobalMusic();
+
+    // Listener para AppState (background/foreground)
+    let wasPlayingBeforeBackground = false;
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      const musicManager = MusicManager.getInstance();
+
+      if (nextAppState === 'active') {
+        console.log('App voltou para foreground, retomando música...');
+        // Apenas retoma se não estiver mutado e se já estava tocando antes
+        if (!musicManager.isMuted() && wasPlayingBeforeBackground) {
+          musicManager.play();
+        }
+      } else if (nextAppState.match(/inactive|background/)) {
+        console.log('App indo para background, pausando música...');
+        wasPlayingBeforeBackground = musicManager.isPlaying();
+        musicManager.pause();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   return (
